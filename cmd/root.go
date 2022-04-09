@@ -13,7 +13,6 @@ var rootCmd = &cobra.Command{
 	Long:  `A large-scale distributed file system`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Hello world!")
-		fmt.Println("started server")
 	},
 }
 
