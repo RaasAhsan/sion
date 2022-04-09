@@ -1,9 +1,9 @@
 package main
 
 import (
-	"log"
+	"github.com/RaasAhsan/sion/cmd"
 )
 
 func main() {
-	log.Printf("started server")
+	cmd.Execute()
 }
