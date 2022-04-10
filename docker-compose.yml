@@ -1,0 +1,8 @@
+version: '3.7'
+services:
+  consul:
+    image: bitnami/etcd:3.4.18
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+    ports:
+      - "2379:2379"
