@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -49,30 +50,96 @@ func register(client *clientv3.Client, ctx context.Context, nodeId string) {
 	log.Println("Started lease keep-alive process")
 }
 
-func server() {
-	r := mux.NewRouter()
+func ReadBlock(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	blockId := params["blockId"]
 
-	r.HandleFunc("/blocks/{blockId}", func(w http.ResponseWriter, r *http.Request) {
-		params := mux.Vars(r)
-		blockId := params["blockId"]
+	buf := make([]byte, BufferSize)
+	bytesRead := 0
+	bytesWritten := 0
 
-		buf := make([]byte, 256)
-		bytes := 0
+	// Open block file for writing
+	filename := fmt.Sprintf("./testdir/data/%s", blockId)
+	in, err := os.Open(filename)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
-		for {
-			n, err := r.Body.Read(buf)
-			bytes += n
-			if err == io.EOF {
-				break
-			} else if err != nil {
+	// TODO: pipe approach?
+	eof := false
+	for !eof {
+		n, err := in.Read(buf)
+		bytesRead += n
+		if err == io.EOF {
+			eof = true
+		} else if err != nil {
+			log.Println(err)
+			return
+		}
+
+		if !eof {
+			m, err := w.Write(buf)
+			bytesWritten += m
+			if err != nil {
+				log.Println(err)
+				return
+			}
+		}
+	}
+
+	log.Printf("Reading block %s, read %d bytes, wrote %d bytes\n", blockId, bytesRead, bytesWritten)
+}
+
+func WriteBlock(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	blockId := params["blockId"]
+
+	buf := make([]byte, BufferSize)
+	bytesRead := 0
+	bytesWritten := 0
+
+	// Open block file for writing
+	filename := fmt.Sprintf("./testdir/data/%s", blockId)
+	out, err := os.Create(filename)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer out.Close()
+
+	eof := false
+	for !eof {
+		n, err := r.Body.Read(buf)
+		bytesRead += n
+		if err == io.EOF {
+			eof = true
+		} else if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		// TODO: is the byte array size limited, or will it write the full 128 bytes?
+		// TODO: is this check necessary? keep parity with ReadBlock
+		if n > 0 {
+			m, err := out.Write(buf)
+			bytesWritten += m
+			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 		}
+	}
 
-		log.Printf("Writing block %s, read %d bytes\n", blockId, bytes)
-		w.Write([]byte(fmt.Sprintf("%d", bytes)))
-	}).Methods("POST")
+	log.Printf("Writing block %s, read %d bytes, wrote %d bytes\n", blockId, bytesRead, bytesWritten)
+	w.Write([]byte(fmt.Sprintf("%d, %d", bytesRead, bytesWritten)))
+}
+
+func server() {
+	r := mux.NewRouter()
+
+	r.HandleFunc("/blocks/{blockId}", ReadBlock).Methods("Get")
+	r.HandleFunc("/blocks/{blockId}", WriteBlock).Methods("POST")
 
 	server := http.Server{
 		Handler: r,
