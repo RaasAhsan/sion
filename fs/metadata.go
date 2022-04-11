@@ -12,7 +12,7 @@ func StartMetadata(client *clientv3.Client, ctx context.Context) {
 	log.Println("Starting metadata server")
 	revision := getNodes(client, ctx)
 
-	fmt.Printf("Revision is %d\n", revision)
+	log.Printf("etcd current revision is %d\n", revision)
 
 	watchChan := client.Watch(ctx, "/sion/nodes/", clientv3.WithRev(revision+1), clientv3.WithPrefix())
 	for watchResp := range watchChan {

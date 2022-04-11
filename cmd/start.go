@@ -11,6 +11,9 @@ import (
 	"github.com/RaasAhsan/sion/fs"
 )
 
+var storage bool
+var metadata bool
+
 var startCmd = &cobra.Command{
 	Use: "start",
 	Run: func(cmd *cobra.Command, args []string) {
@@ -18,17 +21,7 @@ var startCmd = &cobra.Command{
 			panic("At least one of storage or metadata must be specified")
 		}
 
-		etcdCfg := clientv3.Config{
-			Endpoints:   []string{"localhost:2379"},
-			DialTimeout: time.Second,
-			DialOptions: []grpc.DialOption{grpc.WithBlock()},
-		}
-
-		client, err := clientv3.New(etcdCfg)
-		if err != nil {
-			panic(err)
-		}
-
+		client := setupEtcd()
 		ctx := context.Background()
 
 		if storage {
@@ -42,8 +35,20 @@ var startCmd = &cobra.Command{
 	},
 }
 
-var storage bool
-var metadata bool
+func setupEtcd() *clientv3.Client {
+	etcdCfg := clientv3.Config{
+		Endpoints:   []string{"localhost:2379"},
+		DialTimeout: time.Second,
+		DialOptions: []grpc.DialOption{grpc.WithBlock()},
+	}
+
+	client, err := clientv3.New(etcdCfg)
+	if err != nil {
+		panic(err)
+	}
+
+	return client
+}
 
 func init() {
 	startCmd.Flags().BoolVarP(&storage, "storage", "s", false, "")

@@ -2,9 +2,12 @@ package fs
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 
+	"github.com/gorilla/mux"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
@@ -47,14 +50,34 @@ func register(client *clientv3.Client, ctx context.Context, nodeId string) {
 }
 
 func server() {
-	server := http.Server{
-		Addr: ":8080",
-	}
+	r := mux.NewRouter()
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		w.Write([]byte("12345"))
-	})
+	r.HandleFunc("/blocks/{blockId}", func(w http.ResponseWriter, r *http.Request) {
+		params := mux.Vars(r)
+		blockId := params["blockId"]
+
+		buf := make([]byte, 256)
+		bytes := 0
+
+		for {
+			n, err := r.Body.Read(buf)
+			bytes += n
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+		}
+
+		log.Printf("Writing block %s, read %d bytes\n", blockId, bytes)
+		w.Write([]byte(fmt.Sprintf("%d", bytes)))
+	}).Methods("POST")
+
+	server := http.Server{
+		Handler: r,
+		Addr:    ":8080",
+	}
 
 	log.Println("Starting storage HTTP server")
 
