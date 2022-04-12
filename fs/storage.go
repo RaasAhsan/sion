@@ -141,7 +141,7 @@ func writeChunk(w http.ResponseWriter, r *http.Request) {
 func server() {
 	r := mux.NewRouter()
 
-	r.HandleFunc("/chunks/{chunkId}", readChunk).Methods("Get")
+	r.HandleFunc("/chunks/{chunkId}", readChunk).Methods("GET")
 	r.HandleFunc("/chunks/{chunkId}", writeChunk).Methods("POST")
 
 	server := http.Server{
