@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "ctl"
+name = "sionctl"
 version = "0.1.0"

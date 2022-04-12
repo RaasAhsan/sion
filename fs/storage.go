@@ -3,6 +3,7 @@ package fs
 import (
 	"context"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"log"
 	"net/http"
@@ -35,17 +36,18 @@ func register(client *clientv3.Client, ctx context.Context, nodeId string) {
 	log.Printf("Registered node %s in etcd\n", nodeId)
 
 	// TODO: consume keep-alives
-	_, err = client.Lease.KeepAlive(ctx, leaseResp.ID)
+	ch, err := client.Lease.KeepAlive(ctx, leaseResp.ID)
 	if err != nil {
 		panic(err)
 	}
 
-	// go func() {
-	// 	for {
-	// 		c := <-ch
-	// 		fmt.Println(c)
-	// 	}
-	// }()
+	go func() {
+		for {
+			<-ch
+			// c := <-ch
+			// fmt.Println(c)
+		}
+	}()
 
 	log.Println("Started lease keep-alive process")
 }
@@ -98,11 +100,8 @@ func writeChunk(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	chunkId := params["chunkId"]
 
-	buf := make([]byte, BufferSize)
-	bytesRead := 0
-	bytesWritten := 0
-
 	// Open chunk file for writing
+	// TODO: Do we need to flush?
 	filename := fmt.Sprintf("./testdir/data/%s", chunkId)
 	out, err := os.Create(filename)
 	if err != nil {
@@ -111,10 +110,19 @@ func writeChunk(w http.ResponseWriter, r *http.Request) {
 	}
 	defer out.Close()
 
+	// TODO: we could do this but we don't get much type information about the error
+	// r.Body = http.MaxBytesReader(w, r.Body, int64(ChunkSize))
+
+	crc := crc32.NewIEEE()
+
+	buf := make([]byte, BufferSize)
+	rb := 0
+	wb := 0
+
 	eof := false
 	for !eof {
 		n, err := r.Body.Read(buf)
-		bytesRead += n
+		rb += n
 		if err == io.EOF {
 			eof = true
 		} else if err != nil {
@@ -122,11 +130,30 @@ func writeChunk(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// TODO: we should infer this from content-length if it is available
+		if rb > ChunkSize {
+			// TODO: OK to delete the file while it is still open?
+			log.Printf("Chunk %s is too large; deleting...\n", filename)
+			err = os.Remove(filename)
+			if err != nil {
+				log.Printf("Failed to delete chunk %s\n", filename)
+			}
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("Chunk is too large"))
+			return
+		}
+
 		// TODO: is the byte array size limited, or will it write the full 128 bytes?
 		// TODO: is this check necessary? keep parity with readChunk
 		if n > 0 {
+			_, err := crc.Write(buf)
+			if err != nil {
+				log.Println("Failed to run crc32 on chunk buffer")
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 			m, err := out.Write(buf)
-			bytesWritten += m
+			wb += m
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
@@ -134,8 +161,10 @@ func writeChunk(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	log.Printf("Writing chunk %s, read %d bytes, wrote %d bytes\n", chunkId, bytesRead, bytesWritten)
-	w.Write([]byte(fmt.Sprintf("%d, %d", bytesRead, bytesWritten)))
+	checksum := fmt.Sprintf("%x", crc.Sum32())
+
+	log.Printf("Writing chunk %s, read %d bytes, wrote %d bytes, checksum: %s\n", chunkId, rb, wb, checksum)
+	w.Write([]byte(fmt.Sprintf("%d, %d, %s", rb, wb, checksum)))
 }
 
 func server() {
