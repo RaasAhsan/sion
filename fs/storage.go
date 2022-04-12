@@ -53,7 +53,7 @@ func register(client *clientv3.Client, ctx context.Context, nodeId string) {
 }
 
 // TODO: return content length
-func readChunk(w http.ResponseWriter, r *http.Request) {
+func downloadChunk(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	chunkId := params["chunkId"]
 
@@ -96,7 +96,7 @@ func readChunk(w http.ResponseWriter, r *http.Request) {
 
 // TODO: assert length
 // TODO: split out logic
-func writeChunk(w http.ResponseWriter, r *http.Request) {
+func uploadChunk(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	chunkId := params["chunkId"]
 
@@ -170,8 +170,8 @@ func writeChunk(w http.ResponseWriter, r *http.Request) {
 func server() {
 	r := mux.NewRouter()
 
-	r.HandleFunc("/chunks/{chunkId}", readChunk).Methods("GET")
-	r.HandleFunc("/chunks/{chunkId}", writeChunk).Methods("POST")
+	r.HandleFunc("/chunks/{chunkId}", downloadChunk).Methods("GET")
+	r.HandleFunc("/chunks/{chunkId}", uploadChunk).Methods("POST")
 
 	server := http.Server{
 		Handler: r,
