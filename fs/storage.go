@@ -50,16 +50,17 @@ func register(client *clientv3.Client, ctx context.Context, nodeId string) {
 	log.Println("Started lease keep-alive process")
 }
 
-func ReadBlock(w http.ResponseWriter, r *http.Request) {
+// TODO: return content length
+func readChunk(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	blockId := params["blockId"]
+	chunkId := params["chunkId"]
 
 	buf := make([]byte, BufferSize)
 	bytesRead := 0
 	bytesWritten := 0
 
-	// Open block file for writing
-	filename := fmt.Sprintf("./testdir/data/%s", blockId)
+	// Open chunk file for writing
+	filename := fmt.Sprintf("./testdir/data/%s", chunkId)
 	in, err := os.Open(filename)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -88,19 +89,21 @@ func ReadBlock(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	log.Printf("Reading block %s, read %d bytes, wrote %d bytes\n", blockId, bytesRead, bytesWritten)
+	log.Printf("Reading chunk %s, read %d bytes, wrote %d bytes\n", chunkId, bytesRead, bytesWritten)
 }
 
-func WriteBlock(w http.ResponseWriter, r *http.Request) {
+// TODO: assert length
+// TODO: split out logic
+func writeChunk(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	blockId := params["blockId"]
+	chunkId := params["chunkId"]
 
 	buf := make([]byte, BufferSize)
 	bytesRead := 0
 	bytesWritten := 0
 
-	// Open block file for writing
-	filename := fmt.Sprintf("./testdir/data/%s", blockId)
+	// Open chunk file for writing
+	filename := fmt.Sprintf("./testdir/data/%s", chunkId)
 	out, err := os.Create(filename)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -120,7 +123,7 @@ func WriteBlock(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// TODO: is the byte array size limited, or will it write the full 128 bytes?
-		// TODO: is this check necessary? keep parity with ReadBlock
+		// TODO: is this check necessary? keep parity with readChunk
 		if n > 0 {
 			m, err := out.Write(buf)
 			bytesWritten += m
@@ -131,15 +134,15 @@ func WriteBlock(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	log.Printf("Writing block %s, read %d bytes, wrote %d bytes\n", blockId, bytesRead, bytesWritten)
+	log.Printf("Writing chunk %s, read %d bytes, wrote %d bytes\n", chunkId, bytesRead, bytesWritten)
 	w.Write([]byte(fmt.Sprintf("%d, %d", bytesRead, bytesWritten)))
 }
 
 func server() {
 	r := mux.NewRouter()
 
-	r.HandleFunc("/blocks/{blockId}", ReadBlock).Methods("Get")
-	r.HandleFunc("/blocks/{blockId}", WriteBlock).Methods("POST")
+	r.HandleFunc("/chunks/{chunkId}", readChunk).Methods("Get")
+	r.HandleFunc("/chunks/{chunkId}", writeChunk).Methods("POST")
 
 	server := http.Server{
 		Handler: r,
