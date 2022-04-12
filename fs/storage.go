@@ -146,7 +146,7 @@ func uploadChunk(w http.ResponseWriter, r *http.Request) {
 		// TODO: is the byte array size limited, or will it write the full 128 bytes?
 		// TODO: is this check necessary? keep parity with readChunk
 		if n > 0 {
-			_, err := crc.Write(buf)
+			_, err := crc.Write(buf[0:n])
 			if err != nil {
 				log.Println("Failed to run crc32 on chunk buffer")
 				w.WriteHeader(http.StatusInternalServerError)
