@@ -4,30 +4,30 @@ import (
 	"context"
 	"time"
 
+	"github.com/RaasAhsan/sion/fs"
+	"github.com/RaasAhsan/sion/fs/storage"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
-
-	"github.com/RaasAhsan/sion/fs"
 )
 
-var storage bool
-var metadata bool
+var enableStorage bool
+var enableMetadata bool
 
 var startCmd = &cobra.Command{
 	Use: "start",
 	Run: func(cmd *cobra.Command, args []string) {
-		if !storage && !metadata {
+		if !enableStorage && !enableMetadata {
 			panic("At least one of storage or metadata must be specified")
 		}
 
 		client := setupEtcd()
 		ctx := context.Background()
 
-		if storage {
-			go fs.StartStorage(client, ctx)
+		if enableStorage {
+			go storage.StartStorage(client, ctx)
 		}
-		if metadata {
+		if enableMetadata {
 			go fs.StartMetadata(client, ctx)
 		}
 
@@ -51,7 +51,7 @@ func setupEtcd() *clientv3.Client {
 }
 
 func init() {
-	startCmd.Flags().BoolVarP(&storage, "storage", "s", false, "")
-	startCmd.Flags().BoolVarP(&metadata, "metadata", "m", false, "")
+	startCmd.Flags().BoolVarP(&enableStorage, "storage", "s", false, "")
+	startCmd.Flags().BoolVarP(&enableMetadata, "metadata", "m", false, "")
 	rootCmd.AddCommand(startCmd)
 }
