@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/RaasAhsan/sion/fs"
+	"github.com/RaasAhsan/sion/fs/metadata"
 	"github.com/RaasAhsan/sion/fs/storage"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -25,10 +25,10 @@ var startCmd = &cobra.Command{
 		ctx := context.Background()
 
 		if enableStorage {
-			go storage.StartStorage(client, ctx)
+			go storage.StartStorageServer(client, ctx)
 		}
 		if enableMetadata {
-			go fs.StartMetadata(client, ctx)
+			go metadata.StartMetadataServer(client, ctx)
 		}
 
 		select {}

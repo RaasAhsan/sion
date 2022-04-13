@@ -9,7 +9,7 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func StartStorage(client *clientv3.Client, ctx context.Context) {
+func StartStorageServer(client *clientv3.Client, ctx context.Context) {
 	register(client, ctx, "0")
 	server()
 }

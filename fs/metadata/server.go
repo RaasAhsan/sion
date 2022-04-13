@@ -1,4 +1,4 @@
-package fs
+package metadata
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func StartMetadata(client *clientv3.Client, ctx context.Context) {
+func StartMetadataServer(client *clientv3.Client, ctx context.Context) {
 	log.Println("Starting metadata server")
 	revision := getNodes(client, ctx)
 
