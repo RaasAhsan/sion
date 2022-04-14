@@ -17,41 +17,31 @@ func downloadChunk(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	chunkId := params["chunkId"]
 
-	buf := make([]byte, fs.BufferSize)
-	bytesRead := 0
-	bytesWritten := 0
+	filename := fmt.Sprintf("./testdir/data/%s", chunkId)
+	fi, err := os.Stat(filename)
+	if err != nil {
+		http.Error(w, "Chunk not found", http.StatusNotFound)
+		return
+	}
+	// TODO: what if length is too big?
+	len := fi.Size()
 
 	// Open chunk file for writing
-	filename := fmt.Sprintf("./testdir/data/%s", chunkId)
 	in, err := os.Open(filename)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, "Failed to open chunk", http.StatusInternalServerError)
+		return
+	}
+	defer in.Close()
+
+	w.Header().Add("content-length", fmt.Sprintf("%d", len))
+	bytes, err := io.Copy(w, in)
+	if err != nil {
+		log.Println(err)
 		return
 	}
 
-	// TODO: pipe approach?
-	eof := false
-	for !eof {
-		n, err := in.Read(buf)
-		bytesRead += n
-		if err == io.EOF {
-			eof = true
-		} else if err != nil {
-			log.Println(err)
-			return
-		}
-
-		if !eof {
-			m, err := w.Write(buf[:n])
-			bytesWritten += m
-			if err != nil {
-				log.Println(err)
-				return
-			}
-		}
-	}
-
-	log.Printf("Reading chunk %s, read %d bytes, wrote %d bytes\n", chunkId, bytesRead, bytesWritten)
+	log.Printf("Reading chunk %s, wrote %d bytes\n", chunkId, bytes)
 }
 
 // TODO: assert length
@@ -66,7 +56,6 @@ func uploadChunk(w http.ResponseWriter, r *http.Request) {
 	chunkId := params["chunkId"]
 
 	// Open chunk file for writing
-	// TODO: Do we need to flush?
 	filename := fmt.Sprintf("./testdir/data/%s", chunkId)
 	out, err := os.Create(filename)
 	if err != nil {
@@ -75,15 +64,12 @@ func uploadChunk(w http.ResponseWriter, r *http.Request) {
 	}
 	defer out.Close()
 
-	// TODO: we could do this but we don't get much type information about the error
-	// r.Body = http.MaxBytesReader(w, r.Body, int64(ChunkSize))
-
 	crc := crc32.NewIEEE()
 
 	reader := http.MaxBytesReader(w, r.Body, fs.ChunkSize)
 	writer := io.MultiWriter(crc, out)
 
-	wb, err := io.Copy(writer, reader)
+	bytes, err := io.Copy(writer, reader)
 	if err != nil {
 		// TODO: OK to delete the file while it is still open?
 		log.Printf("Chunk %s encountered an error; deleting...\n", filename)
@@ -98,6 +84,6 @@ func uploadChunk(w http.ResponseWriter, r *http.Request) {
 
 	checksum := fmt.Sprintf("%x", crc.Sum32())
 
-	log.Printf("Writing chunk %s, wrote %d bytes, checksum: %s\n", chunkId, wb, checksum)
-	w.Write([]byte(fmt.Sprintf("%d bytes, %s", wb, checksum)))
+	log.Printf("Writing chunk %s, wrote %d bytes, checksum: %s\n", chunkId, bytes, checksum)
+	w.Write([]byte(fmt.Sprintf("%d bytes, %s", bytes, checksum)))
 }
