@@ -42,7 +42,7 @@ func downloadChunk(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !eof {
-			m, err := w.Write(buf[0:n])
+			m, err := w.Write(buf[:n])
 			bytesWritten += m
 			if err != nil {
 				log.Println(err)
@@ -57,6 +57,11 @@ func downloadChunk(w http.ResponseWriter, r *http.Request) {
 // TODO: assert length
 // TODO: split out logic
 func uploadChunk(w http.ResponseWriter, r *http.Request) {
+	if r.ContentLength > fs.ChunkSize {
+		http.Error(w, "Chunk exceeds max size", http.StatusBadRequest)
+		return
+	}
+
 	params := mux.Vars(r)
 	chunkId := params["chunkId"]
 
@@ -65,7 +70,7 @@ func uploadChunk(w http.ResponseWriter, r *http.Request) {
 	filename := fmt.Sprintf("./testdir/data/%s", chunkId)
 	out, err := os.Create(filename)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, "Failed to create file", http.StatusInternalServerError)
 		return
 	}
 	defer out.Close()
@@ -75,54 +80,24 @@ func uploadChunk(w http.ResponseWriter, r *http.Request) {
 
 	crc := crc32.NewIEEE()
 
-	buf := make([]byte, fs.BufferSize)
-	rb := 0
-	wb := 0
+	reader := http.MaxBytesReader(w, r.Body, fs.ChunkSize)
+	writer := io.MultiWriter(crc, out)
 
-	eof := false
-	for !eof {
-		n, err := r.Body.Read(buf)
-		rb += n
-		if err == io.EOF {
-			eof = true
-		} else if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+	wb, err := io.Copy(writer, reader)
+	if err != nil {
+		// TODO: OK to delete the file while it is still open?
+		log.Printf("Chunk %s encountered an error; deleting...\n", filename)
+		err = os.Remove(filename)
+		if err != nil {
+			log.Printf("Failed to delete chunk %s\n", filename)
 		}
 
-		// TODO: we should infer this from content-length if it is available
-		if rb > fs.ChunkSize {
-			// TODO: OK to delete the file while it is still open?
-			log.Printf("Chunk %s is too large; deleting...\n", filename)
-			err = os.Remove(filename)
-			if err != nil {
-				log.Printf("Failed to delete chunk %s\n", filename)
-			}
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("Chunk is too large"))
-			return
-		}
-
-		// TODO: is the byte array size limited, or will it write the full 128 bytes?
-		// TODO: is this check necessary? keep parity with readChunk
-		if n > 0 {
-			_, err := crc.Write(buf[0:n])
-			if err != nil {
-				log.Println("Failed to run crc32 on chunk buffer")
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			m, err := out.Write(buf[0:n])
-			wb += m
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-		}
+		http.Error(w, "Failed to write chunk", http.StatusInternalServerError)
+		return
 	}
 
 	checksum := fmt.Sprintf("%x", crc.Sum32())
 
-	log.Printf("Writing chunk %s, read %d bytes, wrote %d bytes, checksum: %s\n", chunkId, rb, wb, checksum)
-	w.Write([]byte(fmt.Sprintf("%d, %d, %s", rb, wb, checksum)))
+	log.Printf("Writing chunk %s, wrote %d bytes, checksum: %s\n", chunkId, wb, checksum)
+	w.Write([]byte(fmt.Sprintf("%d bytes, %s", wb, checksum)))
 }
