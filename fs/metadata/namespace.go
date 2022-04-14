@@ -2,7 +2,6 @@ package metadata
 
 type ChunkId string
 type Path string
-type Replica string
 
 // TODO: Use a RWMutex to synchronize access to the namespace
 type Namespace struct {
@@ -19,10 +18,10 @@ type File struct {
 }
 
 type Chunk struct {
-	id       ChunkId
-	location Replica
-	status   ChunkStatus
-	size     uint
+	id          ChunkId
+	timeCreated int64
+	status      ChunkStatus // TODO: is this a placement concern?
+	size        uint
 }
 
 type ChunkStatus int
