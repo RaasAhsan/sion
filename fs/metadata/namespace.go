@@ -1,6 +1,7 @@
 package metadata
 
-type ChunkId string
+import "github.com/RaasAhsan/sion/fs"
+
 type Path string
 
 // TODO: Use a RWMutex to synchronize access to the namespace
@@ -18,7 +19,7 @@ type File struct {
 }
 
 type Chunk struct {
-	id          ChunkId
+	id          fs.ChunkId
 	timeCreated int64
 	size        uint
 }

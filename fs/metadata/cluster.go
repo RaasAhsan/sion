@@ -1,16 +1,16 @@
 package metadata
 
+import "github.com/RaasAhsan/sion/fs"
+
 // These data structures are used to track the state of the cluster.
 // Cluster system can dispatch operations to the namespace (e.g. remove all assignments for a node.)
 
-type NodeId string
-
 type Cluster struct {
-	nodes map[NodeId]*node
+	nodes map[fs.NodeId]*node
 }
 
 type node struct {
-	id                NodeId
+	id                fs.NodeId
 	status            nodeStatus
 	timeJoined        int64
 	timeLastHeartbeat int64
