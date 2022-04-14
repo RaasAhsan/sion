@@ -15,7 +15,8 @@ import (
 type chunkId string
 
 type metadata struct {
-	chunks map[chunkId]chunk
+	chunks   map[chunkId]chunk
+	sequence int
 }
 
 type chunk struct {

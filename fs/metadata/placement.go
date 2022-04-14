@@ -6,17 +6,24 @@ package metadata
 
 // TODO: do we need to distinguish current state of the cluster and the state we want to converge to?
 type Placement struct {
-	chunkAssignments map[ChunkId]ChunkPlacement
-	nodeAssignments  map[NodeId][]ChunkId
+	chunkPlacements map[ChunkId]*chunkPlacement
+	nodeAssignments map[NodeId]*nodeAssignment
 }
 
-type ChunkPlacement struct {
+type chunkPlacement struct {
 	chunkId  ChunkId
 	replicas map[NodeId]ReplicaStatus
 }
 
-func (p *ChunkPlacement) ReplicaCount() int {
+func (p *chunkPlacement) ReplicaCount() int {
 	return len(p.replicas)
+}
+
+type nodeAssignment struct {
+	id       NodeId
+	chunks   []ChunkId
+	sequence int
+	log      []int
 }
 
 type ReplicaStatus int
@@ -28,13 +35,14 @@ const (
 )
 
 func (p *Placement) NodeJoin(nodeId NodeId) {
-	p.nodeAssignments[nodeId] = make([]ChunkId, 0)
+	node := &nodeAssignment{id: nodeId, chunks: make([]ChunkId, 0), sequence: 0, log: make([]int, 0)}
+	p.nodeAssignments[nodeId] = node
 	// TODO: allow a chunk to report its chunks on registration
 }
 
 func (p *Placement) NodeLeave(nodeId NodeId) {
-	for _, chunkId := range p.nodeAssignments[nodeId] {
-		placement := p.chunkAssignments[chunkId]
+	for _, chunkId := range p.nodeAssignments[nodeId].chunks {
+		placement := p.chunkPlacements[chunkId]
 		delete(placement.replicas, nodeId)
 	}
 }

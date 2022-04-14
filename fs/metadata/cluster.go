@@ -6,22 +6,22 @@ package metadata
 type NodeId string
 
 type Cluster struct {
-	nodes map[NodeId]Node
+	nodes map[NodeId]*node
 }
 
-type Node struct {
-	id              NodeId
-	status          NodeStatus
-	timeJoined      int64
-	timeLastMessage int64
-	chunksTotal     uint
-	chunksUsed      uint
+type node struct {
+	id                NodeId
+	status            nodeStatus
+	timeJoined        int64
+	timeLastHeartbeat int64
+	chunksTotal       uint
+	chunksUsed        uint
 }
 
-type NodeStatus int
+type nodeStatus int
 
 const (
-	Online NodeStatus = iota
+	Online nodeStatus = iota
 	Offline
 	Decommissioned
 )
