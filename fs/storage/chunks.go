@@ -12,7 +12,16 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// TODO: return content length
+type chunkId string
+
+type metadata struct {
+	chunks map[chunkId]chunk
+}
+
+type chunk struct {
+	id chunkId
+}
+
 func downloadChunk(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	chunkId := params["chunkId"]

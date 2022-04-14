@@ -20,16 +20,8 @@ type File struct {
 type Chunk struct {
 	id          ChunkId
 	timeCreated int64
-	status      ChunkStatus // TODO: is this a placement concern?
 	size        uint
 }
-
-type ChunkStatus int
-
-const (
-	Unavailable ChunkStatus = iota
-	Available
-)
 
 func GetFile() {
 
