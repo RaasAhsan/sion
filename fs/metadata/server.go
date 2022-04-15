@@ -1,32 +1,28 @@
 package metadata
 
 import (
-	"context"
-	"fmt"
 	"log"
+	"net/http"
 
-	clientv3 "go.etcd.io/etcd/client/v3"
+	"github.com/gorilla/mux"
 )
 
-func StartMetadataServer(client *clientv3.Client, ctx context.Context) {
-	log.Println("Starting metadata server")
-	revision := getNodes(client, ctx)
-
-	log.Printf("etcd current revision is %d\n", revision)
-
-	watchChan := client.Watch(ctx, "/sion/nodes/", clientv3.WithRev(revision+1), clientv3.WithPrefix())
-	for watchResp := range watchChan {
-		for _, ev := range watchResp.Events {
-			fmt.Println(ev)
-		}
-	}
+func StartMetadataServer() {
+	server()
 }
 
-func getNodes(client *clientv3.Client, ctx context.Context) int64 {
-	resp, err := client.Get(ctx, "/sion/nodes/", clientv3.WithPrefix())
-	if err != nil {
-		panic(err)
+func server() {
+	r := mux.NewRouter()
+
+	// r.HandleFunc("/register", downloadChunk).Methods("POST")
+	// r.HandleFunc("/heartbeat", uploadChunk).Methods("POST")
+
+	server := http.Server{
+		Handler: r,
+		Addr:    ":8000",
 	}
 
-	return resp.Header.Revision
+	log.Println("Starting metadata HTTP server")
+
+	log.Fatal(server.ListenAndServe())
 }

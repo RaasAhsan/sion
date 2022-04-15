@@ -1,14 +1,9 @@
 package cmd
 
 import (
-	"context"
-	"time"
-
 	"github.com/RaasAhsan/sion/fs/metadata"
 	"github.com/RaasAhsan/sion/fs/storage"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
-	"google.golang.org/grpc"
 )
 
 var enableStorage bool
@@ -21,33 +16,15 @@ var startCmd = &cobra.Command{
 			panic("At least one of storage or metadata must be specified")
 		}
 
-		client := setupEtcd()
-		ctx := context.Background()
-
 		if enableStorage {
-			go storage.StartStorageServer(client, ctx)
+			go storage.StartStorageServer()
 		}
 		if enableMetadata {
-			go metadata.StartMetadataServer(client, ctx)
+			go metadata.StartMetadataServer()
 		}
 
 		select {}
 	},
-}
-
-func setupEtcd() *clientv3.Client {
-	etcdCfg := clientv3.Config{
-		Endpoints:   []string{"localhost:2379"},
-		DialTimeout: time.Second,
-		DialOptions: []grpc.DialOption{grpc.WithBlock()},
-	}
-
-	client, err := clientv3.New(etcdCfg)
-	if err != nil {
-		panic(err)
-	}
-
-	return client
 }
 
 func init() {
