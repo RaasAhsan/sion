@@ -12,13 +12,14 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type inventory struct {
-	chunks   map[fs.ChunkId]chunk
-	sequence int
+type NodeState struct {
+	Sequence int
+	Commands []fs.Command
+	Chunks   map[fs.ChunkId]chunk
 }
 
 type chunk struct {
-	id fs.ChunkId
+	Id fs.ChunkId
 }
 
 func downloadChunk(w http.ResponseWriter, r *http.Request) {
@@ -52,8 +53,6 @@ func downloadChunk(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Reading chunk %s, wrote %d bytes\n", chunkId, bytes)
 }
 
-// TODO: assert length
-// TODO: split out logic
 func uploadChunk(w http.ResponseWriter, r *http.Request) {
 	if r.ContentLength > fs.ChunkSize {
 		http.Error(w, "Chunk exceeds max size", http.StatusBadRequest)

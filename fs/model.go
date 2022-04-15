@@ -12,9 +12,11 @@ type RegisterRequest struct {
 }
 
 type RegisterResponse struct {
+	NodeId NodeId
 }
 
 type HeartbeatRequest struct {
+	NodeId   NodeId
 	Sequence int
 }
 
