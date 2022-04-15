@@ -5,6 +5,8 @@ Sion is a scalable, distributed file system designed to reliably store and serve
 Sion does not expose a traditional POSIX file system API to clients. Instead, it exposes an HTTP+JSON API with which all namespace and chunk operations are performed. 
 
 ## Architecture
-1. The cluster subsystem is responsible for processing cluster operations and tracking the state of the cluster.
-2. The namespace subsystem is responsible for maintaining the directory structure and metadata of the file system.
-3. The placement subsystem is responsible for making assignment decisions around where chunks should be located. It responds to the cluster and namespace subsystems to perform necessary functions.
+### Master
+A Sion cluster contains a primary master which performs three major functions: cluster management, namespace management, and placement.
+1. The cluster subsystem processes cluster operations and tracks the state of the cluster.
+2. The namespace subsystem processes file system operations and serves this information to storage nodes and clients.
+3. The placement subsystem makes assignment decisions for where chunks should be located. Placement decisions are used to respond to failures in the cluster and balance load across nodes. It interacts with the cluster and namespace subsystems to perform necessary functions.

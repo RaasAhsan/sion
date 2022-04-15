@@ -12,15 +12,13 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type chunkId string
-
-type metadata struct {
-	chunks   map[chunkId]chunk
+type inventory struct {
+	chunks   map[fs.ChunkId]chunk
 	sequence int
 }
 
 type chunk struct {
-	id chunkId
+	id fs.ChunkId
 }
 
 func downloadChunk(w http.ResponseWriter, r *http.Request) {
