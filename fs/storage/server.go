@@ -9,7 +9,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func StartStorageServer() {
+func StartStorageProcess() {
 	client := &http.Client{
 		Timeout: 3 * time.Second,
 	}
@@ -17,6 +17,8 @@ func StartStorageServer() {
 	go HeartbeatLoop(client)
 	server()
 }
+
+type StorageHandler struct{}
 
 func Join(client *http.Client) {
 	log.Println("Registering node with master")
@@ -60,8 +62,10 @@ func HeartbeatLoop(client *http.Client) {
 func server() {
 	r := mux.NewRouter()
 
-	r.HandleFunc("/chunks/{chunkId}", downloadChunk).Methods("GET")
-	r.HandleFunc("/chunks/{chunkId}", uploadChunk).Methods("POST")
+	h := &StorageHandler{}
+
+	r.HandleFunc("/chunks/{chunkId}", h.DownloadChunk).Methods("GET")
+	r.HandleFunc("/chunks/{chunkId}", h.UploadChunk).Methods("POST")
 
 	server := http.Server{
 		Handler: r,

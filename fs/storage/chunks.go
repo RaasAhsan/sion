@@ -22,7 +22,7 @@ type chunk struct {
 	Id fs.ChunkId
 }
 
-func downloadChunk(w http.ResponseWriter, r *http.Request) {
+func (h *StorageHandler) DownloadChunk(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	chunkId := params["chunkId"]
 
@@ -53,7 +53,7 @@ func downloadChunk(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Reading chunk %s, wrote %d bytes\n", chunkId, bytes)
 }
 
-func uploadChunk(w http.ResponseWriter, r *http.Request) {
+func (h *StorageHandler) UploadChunk(w http.ResponseWriter, r *http.Request) {
 	if r.ContentLength > fs.ChunkSize {
 		http.Error(w, "Chunk exceeds max size", http.StatusBadRequest)
 		return

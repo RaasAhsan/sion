@@ -17,10 +17,10 @@ var startCmd = &cobra.Command{
 		}
 
 		if enableStorage {
-			go storage.StartStorageServer()
+			go storage.StartStorageProcess()
 		}
 		if enableMetadata {
-			go metadata.StartMetadataServer()
+			go metadata.StartMetadataProcess()
 		}
 
 		select {}

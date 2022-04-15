@@ -8,24 +8,28 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func StartMetadataServer() {
+func StartMetadataProcess() {
 	server()
 }
 
-func Join(w http.ResponseWriter, r *http.Request) {
+type MetadataHandler struct{}
+
+func (h *MetadataHandler) Join(w http.ResponseWriter, r *http.Request) {
 	id := uuid.New()
 	w.Write([]byte(id.String()))
 }
 
-func Heartbeat(w http.ResponseWriter, r *http.Request) {
+func (h *MetadataHandler) Heartbeat(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
 
 func server() {
 	r := mux.NewRouter()
 
-	r.HandleFunc("/join", Join).Methods("POST")
-	r.HandleFunc("/heartbeat", Heartbeat).Methods("POST")
+	handler := &MetadataHandler{}
+
+	r.HandleFunc("/join", handler.Join).Methods("POST")
+	r.HandleFunc("/heartbeat", handler.Heartbeat).Methods("POST")
 
 	server := http.Server{
 		Handler: r,
