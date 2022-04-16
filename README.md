@@ -12,3 +12,8 @@ A Sion master performs three major functions: cluster management, namespace mana
 1. The cluster subsystem processes cluster operations and tracks the state of the cluster.
 2. The namespace subsystem processes file system operations and serves this information to storage nodes and clients.
 3. The placement subsystem makes assignment decisions for where chunks should be located. Placement decisions are used to respond to failures in the cluster and balance load across nodes. It interacts with the cluster and namespace subsystems to perform necessary functions.
+
+## Notes
+```
+$ curl -XPOST http://localhost:8000/files -H "content-type: application/json" --data '{"path":"path"}'
+```
