@@ -77,6 +77,7 @@ func (h *MetadataHandler) CreateFile(w http.ResponseWriter, r *http.Request) {
 	file := NewFile(create.Path)
 	h.namespace.AddFile(file)
 
+	// TODO: Separate API response type
 	json, err := json.MarshalIndent(file, "", "  ")
 	if err != nil {
 		http.Error(w, "Failed to return response", http.StatusInternalServerError)
