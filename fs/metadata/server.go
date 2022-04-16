@@ -15,8 +15,10 @@ func StartMetadataProcess() {
 }
 
 type MetadataHandler struct {
+	// TODO: a lock for each subsystem?
 	lock      sync.RWMutex
 	namespace *Namespace
+	cluster   *Cluster
 }
 
 func (h *MetadataHandler) Join(w http.ResponseWriter, r *http.Request) {
@@ -27,6 +29,8 @@ func (h *MetadataHandler) Join(w http.ResponseWriter, r *http.Request) {
 func (h *MetadataHandler) Heartbeat(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
+
+// TODO: Locate this business logic to another file, and just parse request/render response here?
 
 func (h *MetadataHandler) GetFile(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
@@ -91,7 +95,7 @@ func (h *MetadataHandler) CreateFile(w http.ResponseWriter, r *http.Request) {
 func server() {
 	r := mux.NewRouter()
 
-	handler := &MetadataHandler{namespace: NewNamespace()}
+	handler := &MetadataHandler{namespace: NewNamespace(), cluster: nil}
 
 	r.HandleFunc("/join", handler.Join).Methods("POST")
 	r.HandleFunc("/heartbeat", handler.Heartbeat).Methods("POST")
