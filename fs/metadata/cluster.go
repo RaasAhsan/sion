@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/RaasAhsan/sion/fs"
@@ -17,6 +18,8 @@ import (
 
 type Cluster struct {
 	Nodes map[fs.NodeId]*Node
+	// TODO: switch to RWMutex
+	lock sync.Mutex
 }
 
 func NewCluster() *Cluster {
@@ -40,11 +43,15 @@ func (c *Cluster) AddNode(id fs.NodeId) {
 		HeartbeatChannel:  make(chan bool),
 	}
 
-	go node.Monitor()
+	go node.Monitor(c)
 
 	c.Nodes[id] = node
 
 	log.Printf("Node %s joined cluster\n", id)
+}
+
+func (c *Cluster) DeleteNode(id fs.NodeId) {
+	delete(c.Nodes, id)
 }
 
 func (c *Cluster) HeartbeatNode(id fs.NodeId) error {
@@ -67,18 +74,25 @@ type Node struct {
 	HeartbeatChannel  chan bool
 }
 
-func (node *Node) Monitor() {
+func (n *Node) Monitor(c *Cluster) {
 	timer := time.NewTimer(fs.NodeTimeout)
 	for {
-		select {
-		case <-node.HeartbeatChannel:
-			node.TimeLastHeartbeat = time.Now().Unix()
-			timer.Stop()
-			timer = time.NewTimer(fs.NodeTimeout)
-		case <-timer.C:
-			// TODO: delete node
-			log.Printf("Node %s died\n", node.Id)
-		}
+		func() {
+			select {
+			case <-n.HeartbeatChannel:
+				c.lock.Lock()
+				defer c.lock.Unlock()
+				n.TimeLastHeartbeat = time.Now().Unix()
+				timer.Stop()
+				timer = time.NewTimer(fs.NodeTimeout)
+			case <-timer.C:
+				c.lock.Lock()
+				defer c.lock.Unlock()
+				c.DeleteNode(n.Id)
+				log.Printf("Node %s timed out\n", n.Id)
+				return
+			}
+		}()
 	}
 }
 
@@ -96,11 +110,11 @@ const (
 )
 
 func (h *MetadataHandler) Join(w http.ResponseWriter, r *http.Request) {
-	h.lock.Lock()
-	defer h.lock.Unlock()
+	h.Cluster.lock.Lock()
+	defer h.Cluster.lock.Unlock()
 
 	id := fs.NodeId(uuid.New().String())
-	h.cluster.AddNode(id)
+	h.Cluster.AddNode(id)
 
 	w.Write([]byte(id))
 }
@@ -119,10 +133,10 @@ func (h *MetadataHandler) Heartbeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.lock.Lock()
-	defer h.lock.Unlock()
+	h.Cluster.lock.Lock()
+	defer h.Cluster.lock.Unlock()
 
-	err = h.cluster.HeartbeatNode(heartbeatReq.NodeId)
+	err = h.Cluster.HeartbeatNode(heartbeatReq.NodeId)
 	if err != nil {
 		http.Error(w, "Invalid node, please register", http.StatusNotFound)
 		return

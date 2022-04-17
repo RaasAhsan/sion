@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"sync"
 	"time"
 
 	"github.com/RaasAhsan/sion/fs"
@@ -11,6 +12,8 @@ type Path string
 // TODO: Use a RWMutex to synchronize access to the namespace
 type Namespace struct {
 	files map[Path]*File
+	// TODO: switch to RWMutex
+	lock sync.Mutex
 }
 
 func NewNamespace() *Namespace {

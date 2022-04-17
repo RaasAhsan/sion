@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"sync"
 
 	"github.com/gorilla/mux"
 )
@@ -14,10 +13,8 @@ func StartMetadataProcess() {
 }
 
 type MetadataHandler struct {
-	// TODO: a lock for each subsystem?
-	lock      sync.RWMutex
-	namespace *Namespace
-	cluster   *Cluster
+	Namespace *Namespace
+	Cluster   *Cluster
 }
 
 // TODO: Locate this business logic to another file, and just parse request/render response here?
@@ -27,15 +24,15 @@ func (h *MetadataHandler) GetFile(w http.ResponseWriter, r *http.Request) {
 	path := Path(params["path"])
 
 	// TODO: scope this in a function to minimize critical region?
-	h.lock.RLock()
-	defer h.lock.RUnlock()
+	h.Namespace.lock.Lock()
+	defer h.Namespace.lock.Unlock()
 
-	if !h.namespace.FileExists(path) {
+	if !h.Namespace.FileExists(path) {
 		http.Error(w, "File does not exist", http.StatusNotFound)
 		return
 	}
 
-	file := h.namespace.GetFile(path)
+	file := h.Namespace.GetFile(path)
 
 	json, err := json.MarshalIndent(file, "", "  ")
 	if err != nil {
@@ -60,16 +57,16 @@ func (h *MetadataHandler) CreateFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO: scope this in a function to minimize critical region?
-	h.lock.Lock()
-	defer h.lock.Unlock()
+	h.Namespace.lock.Lock()
+	defer h.Namespace.lock.Unlock()
 
-	if h.namespace.FileExists(create.Path) {
+	if h.Namespace.FileExists(create.Path) {
 		http.Error(w, "File already exists", http.StatusBadRequest)
 		return
 	}
 
 	file := NewFile(create.Path)
-	h.namespace.AddFile(file)
+	h.Namespace.AddFile(file)
 
 	// TODO: Separate API response type
 	json, err := json.MarshalIndent(file, "", "  ")
@@ -85,7 +82,7 @@ func (h *MetadataHandler) CreateFile(w http.ResponseWriter, r *http.Request) {
 func server() {
 	r := mux.NewRouter()
 
-	handler := &MetadataHandler{namespace: NewNamespace(), cluster: NewCluster()}
+	handler := &MetadataHandler{Namespace: NewNamespace(), Cluster: NewCluster()}
 
 	r.HandleFunc("/join", handler.Join).Methods("POST")
 	r.HandleFunc("/heartbeat", handler.Heartbeat).Methods("POST")
