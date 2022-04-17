@@ -1,12 +1,15 @@
 package storage
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"time"
 
+	"github.com/RaasAhsan/sion/fs"
 	"github.com/gorilla/mux"
 )
 
@@ -16,15 +19,19 @@ func StartStorageProcess() {
 	}
 	// TODO: what is the common pattern for this?
 	baseUrl := "http://localhost:8000"
-	Join(client, baseUrl)
+	nodeId := Join(client, baseUrl)
 	done := make(chan bool)
-	go HeartbeatLoop(client, baseUrl, done)
+	go HeartbeatLoop(client, baseUrl, nodeId, done)
 	StartStorageServer()
 }
 
 type StorageHandler struct{}
 
-func Join(client *http.Client, baseUrl string) {
+func GatherChunkInventory() {
+
+}
+
+func Join(client *http.Client, baseUrl string) fs.NodeId {
 	log.Println("Registering node with master")
 	resp, err := client.Post(fmt.Sprintf("%s/join", baseUrl), "application/json", nil)
 	if err != nil {
@@ -38,11 +45,13 @@ func Join(client *http.Client, baseUrl string) {
 	if err != nil {
 		log.Fatalln("Failed to read register body")
 	}
-	log.Printf("Successfully registered node: %s", string(body))
+	bodyStr := string(body)
+	log.Printf("Successfully registered node: %s", bodyStr)
+	return fs.NodeId(bodyStr)
 }
 
 // TODO: create an exit channel
-func HeartbeatLoop(client *http.Client, baseUrl string, done chan bool) {
+func HeartbeatLoop(client *http.Client, baseUrl string, nodeId fs.NodeId, done chan bool) {
 	log.Println("Starting heartbeat process")
 
 	ticker := time.NewTicker(5 * time.Second)
@@ -54,7 +63,13 @@ func HeartbeatLoop(client *http.Client, baseUrl string, done chan bool) {
 				return
 			case <-ticker.C:
 				func() {
-					resp, err := client.Post(fmt.Sprintf("%s/heartbeat", baseUrl), "application/json", nil)
+					req := fs.HeartbeatRequest{NodeId: nodeId}
+					reqBody, err := json.Marshal(req)
+					if err != nil {
+						log.Println("Failed to create request")
+						return
+					}
+					resp, err := client.Post(fmt.Sprintf("%s/heartbeat", baseUrl), "application/json", bytes.NewBuffer(reqBody))
 					if err != nil {
 						log.Println("Failed to send heartbeat")
 						return

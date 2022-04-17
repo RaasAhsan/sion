@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
@@ -19,15 +18,6 @@ type MetadataHandler struct {
 	lock      sync.RWMutex
 	namespace *Namespace
 	cluster   *Cluster
-}
-
-func (h *MetadataHandler) Join(w http.ResponseWriter, r *http.Request) {
-	id := uuid.New()
-	w.Write([]byte(id.String()))
-}
-
-func (h *MetadataHandler) Heartbeat(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("ok"))
 }
 
 // TODO: Locate this business logic to another file, and just parse request/render response here?
@@ -95,7 +85,7 @@ func (h *MetadataHandler) CreateFile(w http.ResponseWriter, r *http.Request) {
 func server() {
 	r := mux.NewRouter()
 
-	handler := &MetadataHandler{namespace: NewNamespace(), cluster: nil}
+	handler := &MetadataHandler{namespace: NewNamespace(), cluster: NewCluster()}
 
 	r.HandleFunc("/join", handler.Join).Methods("POST")
 	r.HandleFunc("/heartbeat", handler.Heartbeat).Methods("POST")
