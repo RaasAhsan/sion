@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -13,16 +14,19 @@ func StartStorageProcess() {
 	client := &http.Client{
 		Timeout: 3 * time.Second,
 	}
-	Join(client)
-	go HeartbeatLoop(client)
-	server()
+	// TODO: what is the common pattern for this?
+	baseUrl := "http://localhost:8000"
+	Join(client, baseUrl)
+	done := make(chan bool)
+	go HeartbeatLoop(client, baseUrl, done)
+	StartStorageServer()
 }
 
 type StorageHandler struct{}
 
-func Join(client *http.Client) {
+func Join(client *http.Client, baseUrl string) {
 	log.Println("Registering node with master")
-	resp, err := client.Post("http://localhost:8000/join", "application/json", nil)
+	resp, err := client.Post(fmt.Sprintf("%s/join", baseUrl), "application/json", nil)
 	if err != nil {
 		log.Fatalln("Failed to register")
 	}
@@ -38,28 +42,39 @@ func Join(client *http.Client) {
 }
 
 // TODO: create an exit channel
-func HeartbeatLoop(client *http.Client) {
+func HeartbeatLoop(client *http.Client, baseUrl string, done chan bool) {
 	log.Println("Starting heartbeat process")
-	for {
-		func() {
-			resp, err := client.Post("http://localhost:8000/heartbeat", "application/json", nil)
-			if err != nil {
-				log.Println("Failed to send heartbeat")
+
+	ticker := time.NewTicker(5 * time.Second)
+
+	func() {
+		for {
+			select {
+			case <-done:
 				return
+			case <-ticker.C:
+				func() {
+					resp, err := client.Post(fmt.Sprintf("%s/heartbeat", baseUrl), "application/json", nil)
+					if err != nil {
+						log.Println("Failed to send heartbeat")
+						return
+					}
+					defer resp.Body.Close()
+					body, err := io.ReadAll(resp.Body)
+					if err != nil {
+						log.Println("Failed to read body")
+						return
+					}
+					log.Println(string(body))
+				}()
 			}
-			defer resp.Body.Close()
-			body, err := io.ReadAll(resp.Body)
-			if err != nil {
-				log.Println("Failed to read body")
-				return
-			}
-			log.Println(string(body))
-		}()
-		time.Sleep(5 * time.Second)
-	}
+		}
+	}()
+
+	ticker.Stop()
 }
 
-func server() {
+func StartStorageServer() {
 	r := mux.NewRouter()
 
 	h := &StorageHandler{}
