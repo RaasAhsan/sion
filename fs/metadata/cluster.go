@@ -66,7 +66,7 @@ func (c *Cluster) HeartbeatNode(id fs.NodeId) error {
 
 type Node struct {
 	Id                fs.NodeId
-	Status            nodeStatus
+	Status            NodeStatus
 	TimeJoined        int64
 	TimeLastHeartbeat int64
 	ChunksTotal       uint
@@ -101,10 +101,10 @@ func (node *Node) Heartbeat() {
 	node.HeartbeatChannel <- true
 }
 
-type nodeStatus int
+type NodeStatus int
 
 const (
-	Online nodeStatus = iota
+	Online NodeStatus = iota
 	Offline
 	Decommissioned
 )
