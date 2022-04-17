@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -29,7 +30,6 @@ func (c *Cluster) GetNode(id fs.NodeId) *Node {
 }
 
 func (c *Cluster) AddNode(id fs.NodeId) {
-	// heartbeatTimer := time.NewTimer(1 * time.Minute)
 	node := &Node{
 		Id:                id,
 		Status:            Online,
@@ -37,9 +37,14 @@ func (c *Cluster) AddNode(id fs.NodeId) {
 		TimeLastHeartbeat: time.Now().Unix(),
 		ChunksTotal:       0,
 		ChunksUsed:        0,
+		HeartbeatChannel:  make(chan bool),
 	}
 
+	go node.Monitor()
+
 	c.Nodes[id] = node
+
+	log.Printf("Node %s joined cluster\n", id)
 }
 
 func (c *Cluster) HeartbeatNode(id fs.NodeId) error {
@@ -48,7 +53,7 @@ func (c *Cluster) HeartbeatNode(id fs.NodeId) error {
 		return errors.New("Node does not exist")
 	}
 
-	node.TimeLastHeartbeat = time.Now().Unix()
+	node.Heartbeat()
 	return nil
 }
 
@@ -59,7 +64,27 @@ type Node struct {
 	TimeLastHeartbeat int64
 	ChunksTotal       uint
 	ChunksUsed        uint
-	HeartbeatTimer    *time.Timer
+	HeartbeatChannel  chan bool
+}
+
+func (node *Node) Monitor() {
+	timer := time.NewTimer(fs.NodeTimeout)
+	for {
+		select {
+		case <-node.HeartbeatChannel:
+			node.TimeLastHeartbeat = time.Now().Unix()
+			timer.Stop()
+			timer = time.NewTimer(fs.NodeTimeout)
+		case <-timer.C:
+			// TODO: delete node
+			log.Printf("Node %s died\n", node.Id)
+		}
+	}
+}
+
+func (node *Node) Heartbeat() {
+	node.TimeLastHeartbeat = time.Now().Unix()
+	node.HeartbeatChannel <- true
 }
 
 type nodeStatus int
