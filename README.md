@@ -8,10 +8,12 @@ Sion does not expose a traditional POSIX file system API to clients. Instead, it
 A Sion cluster contains a primary master which directs the state of the cluster, and many storage nodes which store and serve files.
 
 ### Master
-A Sion master performs three major functions: cluster management, namespace management, and placement.
+A Sion master performs three major processes: cluster management, namespace management, and placement. Each process is compartmentalized into its own subsystem:
 1. The cluster subsystem processes cluster operations and tracks the state of the cluster.
 2. The namespace subsystem processes file system operations and serves this information to storage nodes and clients.
-3. The placement subsystem makes assignment decisions for where chunks should be located. Placement decisions are used to respond to failures in the cluster and balance load across nodes. It interacts with the cluster and namespace subsystems to perform necessary functions.
+3. The placement subsystem makes assignment decisions for where chunks should be located. Placement decisions are used to respond to failures in the cluster and balance load across nodes.
+
+Subsystems often need to interact with eachother in response to certain requests or events. For example, when a node dies, the cluster subsystem will instruct the placement subsystem to reschedule all its chunks. This communication primarily takes place over a Go channel.
 
 ## Notes
 ```
