@@ -17,27 +17,31 @@ import (
 // Cluster system can dispatch operations to the namespace (e.g. remove all assignments for a node.)
 
 type Cluster struct {
-	Nodes map[fs.NodeId]*Node
+	nodes             map[fs.NodeId]*Node
+	placementRequests chan fs.NodeId
 	// TODO: switch to RWMutex
 	lock sync.Mutex
 }
 
-func NewCluster() *Cluster {
+func NewCluster(placementRequests chan fs.NodeId) *Cluster {
 	return &Cluster{
-		Nodes: make(map[fs.NodeId]*Node),
+		nodes:             make(map[fs.NodeId]*Node),
+		placementRequests: placementRequests,
 	}
 }
 
 func (c *Cluster) GetNode(id fs.NodeId) *Node {
-	return c.Nodes[id]
+	return c.nodes[id]
 }
 
-func (c *Cluster) AddNode(id fs.NodeId) {
+// TODO: separate into NewNode and AddNode
+func (c *Cluster) AddNode(id fs.NodeId, address fs.NodeAddress) {
 	node := &Node{
 		Id:                id,
 		Status:            Online,
 		TimeJoined:        time.Now().Unix(),
 		TimeLastHeartbeat: time.Now().Unix(),
+		Address:           address,
 		ChunksTotal:       0,
 		ChunksUsed:        0,
 		HeartbeatChannel:  make(chan bool),
@@ -45,13 +49,14 @@ func (c *Cluster) AddNode(id fs.NodeId) {
 
 	go node.Monitor(c)
 
-	c.Nodes[id] = node
+	c.nodes[id] = node
+	c.placementRequests <- id
 
-	log.Printf("Node %s joined cluster\n", id)
+	log.Printf("Node %s (%s) joined cluster\n", id, address)
 }
 
 func (c *Cluster) DeleteNode(id fs.NodeId) {
-	delete(c.Nodes, id)
+	delete(c.nodes, id)
 }
 
 func (c *Cluster) HeartbeatNode(id fs.NodeId) error {
@@ -69,9 +74,11 @@ type Node struct {
 	Status            NodeStatus
 	TimeJoined        int64
 	TimeLastHeartbeat int64
-	ChunksTotal       uint
-	ChunksUsed        uint
-	HeartbeatChannel  chan bool
+	Address           fs.NodeAddress
+	// TODO: this may be a placement concern only
+	ChunksTotal      uint
+	ChunksUsed       uint
+	HeartbeatChannel chan bool
 }
 
 func (n *Node) Monitor(c *Cluster) {
@@ -110,11 +117,24 @@ const (
 )
 
 func (h *MetadataHandler) Join(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Failed to read body", http.StatusBadRequest)
+		return
+	}
+
+	var req fs.RegisterRequest
+	err = json.Unmarshal(body, &req)
+	if err != nil {
+		http.Error(w, "Failed to parse body", http.StatusBadRequest)
+		return
+	}
+
 	h.Cluster.lock.Lock()
 	defer h.Cluster.lock.Unlock()
 
 	id := fs.NodeId(uuid.New().String())
-	h.Cluster.AddNode(id)
+	h.Cluster.AddNode(id, req.Address)
 
 	w.Write([]byte(id))
 }

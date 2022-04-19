@@ -3,8 +3,6 @@ package metadata
 import (
 	"sync"
 	"time"
-
-	"github.com/RaasAhsan/sion/fs"
 )
 
 type Path string
@@ -39,7 +37,6 @@ type File struct {
 	TimeCreated  int64
 	TimeModified int64
 	Size         uint // TODO: can file size be determined easily?
-	Chunks       []Chunk
 }
 
 func NewFile(path Path) *File {
@@ -48,24 +45,5 @@ func NewFile(path Path) *File {
 		TimeCreated:  time.Now().Unix(),
 		TimeModified: time.Now().Unix(),
 		Size:         0,
-		Chunks:       make([]Chunk, 0),
 	}
-}
-
-type Chunk struct {
-	id          fs.ChunkId
-	timeCreated int64
-	size        uint
-}
-
-func GetFile() {
-
-}
-
-func AddFileChunk() {
-
-}
-
-func CommitChunk() {
-
 }

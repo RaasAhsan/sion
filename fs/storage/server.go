@@ -19,7 +19,8 @@ func StartStorageProcess() {
 	}
 	// TODO: what is the common pattern for this?
 	baseUrl := "http://localhost:8000"
-	nodeId := Join(client, baseUrl)
+	localUrl := "http://localhost:8080"
+	nodeId := Join(client, baseUrl, localUrl)
 	done := make(chan bool)
 	go HeartbeatLoop(client, baseUrl, nodeId, done)
 	StartStorageServer()
@@ -31,9 +32,16 @@ func GatherChunkInventory() {
 
 }
 
-func Join(client *http.Client, baseUrl string) fs.NodeId {
+func Join(client *http.Client, baseUrl string, localUrl string) fs.NodeId {
 	log.Println("Registering node with master")
-	resp, err := client.Post(fmt.Sprintf("%s/join", baseUrl), "application/json", nil)
+	req := fs.RegisterRequest{
+		Address: fs.NodeAddress(localUrl),
+	}
+	reqBytes, err := json.Marshal(req)
+	if err != nil {
+		log.Fatalln("Failed to serialize register request")
+	}
+	resp, err := client.Post(fmt.Sprintf("%s/join", baseUrl), "application/json", bytes.NewBuffer(reqBytes))
 	if err != nil {
 		log.Fatalln("Failed to register")
 	}
