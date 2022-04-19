@@ -20,7 +20,7 @@ type Cluster struct {
 	nodes             map[fs.NodeId]*Node
 	placementRequests chan fs.NodeId
 	// TODO: switch to RWMutex
-	lock sync.Mutex
+	sync.Mutex
 }
 
 func NewCluster(placementRequests chan fs.NodeId) *Cluster {
@@ -87,14 +87,14 @@ func (n *Node) Monitor(c *Cluster) {
 		func() {
 			select {
 			case <-n.HeartbeatChannel:
-				c.lock.Lock()
-				defer c.lock.Unlock()
+				c.Lock()
+				defer c.Unlock()
 				n.TimeLastHeartbeat = time.Now().Unix()
 				timer.Stop()
 				timer = time.NewTimer(fs.NodeTimeout)
 			case <-timer.C:
-				c.lock.Lock()
-				defer c.lock.Unlock()
+				c.Lock()
+				defer c.Unlock()
 				c.DeleteNode(n.Id)
 				log.Printf("Node %s timed out\n", n.Id)
 				return
@@ -130,8 +130,8 @@ func (h *MetadataHandler) Join(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.Cluster.lock.Lock()
-	defer h.Cluster.lock.Unlock()
+	h.Cluster.Lock()
+	defer h.Cluster.Unlock()
 
 	id := fs.NodeId(uuid.New().String())
 	h.Cluster.AddNode(id, req.Address)
@@ -153,8 +153,8 @@ func (h *MetadataHandler) Heartbeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.Cluster.lock.Lock()
-	defer h.Cluster.lock.Unlock()
+	h.Cluster.Lock()
+	defer h.Cluster.Unlock()
 
 	err = h.Cluster.HeartbeatNode(heartbeatReq.NodeId)
 	if err != nil {

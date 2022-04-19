@@ -11,7 +11,7 @@ type Path string
 type Namespace struct {
 	files map[Path]*File
 	// TODO: switch to RWMutex
-	lock sync.Mutex
+	sync.Mutex
 }
 
 func NewNamespace() *Namespace {

@@ -26,8 +26,8 @@ func (h *MetadataHandler) GetFile(w http.ResponseWriter, r *http.Request) {
 	path := Path(params["path"])
 
 	// TODO: scope this in a function to minimize critical region?
-	h.Namespace.lock.Lock()
-	defer h.Namespace.lock.Unlock()
+	h.Namespace.Lock()
+	defer h.Namespace.Unlock()
 
 	if !h.Namespace.FileExists(path) {
 		http.Error(w, "File does not exist", http.StatusNotFound)
@@ -62,8 +62,8 @@ func (h *MetadataHandler) CreateFile(w http.ResponseWriter, r *http.Request) {
 	path := Path(params["path"])
 
 	// TODO: scope this in a function to minimize critical region?
-	h.Namespace.lock.Lock()
-	defer h.Namespace.lock.Unlock()
+	h.Namespace.Lock()
+	defer h.Namespace.Unlock()
 
 	if h.Namespace.FileExists(path) {
 		http.Error(w, "File already exists", http.StatusBadRequest)
@@ -89,8 +89,8 @@ func (h *MetadataHandler) AppendChunkToFile(w http.ResponseWriter, r *http.Reque
 	path := Path(params["path"])
 
 	// TODO: scope this in a function to minimize critical region?
-	h.Namespace.lock.Lock()
-	defer h.Namespace.lock.Unlock()
+	h.Namespace.Lock()
+	defer h.Namespace.Unlock()
 
 	if !h.Namespace.FileExists(path) {
 		http.Error(w, "File does not exist", http.StatusBadRequest)
@@ -100,14 +100,14 @@ func (h *MetadataHandler) AppendChunkToFile(w http.ResponseWriter, r *http.Reque
 	chunk := NewChunk()
 
 	nodeId := func() fs.NodeId {
-		h.Placement.lock.Lock()
-		defer h.Placement.lock.Unlock()
+		h.Placement.Lock()
+		defer h.Placement.Unlock()
 		return h.Placement.PlaceChunk(chunk)
 	}()
 
 	address := func() fs.NodeAddress {
-		h.Cluster.lock.Lock()
-		defer h.Cluster.lock.Unlock()
+		h.Cluster.Lock()
+		defer h.Cluster.Unlock()
 		// TODO: handle errors
 		return h.Cluster.GetNode(nodeId).Address
 	}()

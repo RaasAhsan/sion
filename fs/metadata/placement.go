@@ -18,7 +18,7 @@ type Placement struct {
 	nodeAssignments map[fs.NodeId]*NodeAssignment
 	// TODO: refine this later
 	requests chan fs.NodeId
-	lock     sync.Mutex
+	sync.Mutex
 }
 
 func NewPlacement(requests chan fs.NodeId) *Placement {
@@ -36,8 +36,8 @@ func (p *Placement) ProcessRequests() {
 	for {
 		req := <-p.requests
 		func() {
-			p.lock.Lock()
-			defer p.lock.Unlock()
+			p.Lock()
+			defer p.Unlock()
 			p.NodeJoin(req)
 		}()
 	}
