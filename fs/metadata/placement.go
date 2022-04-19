@@ -41,6 +41,8 @@ func (p *Placement) ProcessRequests() {
 			switch m := msg.(type) {
 			case PlacementNodeJoin:
 				p.NodeJoin(m.NodeId)
+			case PlacementNodeLeave:
+				p.NodeLeave(m.NodeId)
 			default:
 			}
 		}()
@@ -118,6 +120,12 @@ type PlacementNodeJoin struct {
 }
 
 func (PlacementNodeJoin) PlacementMessage() {}
+
+type PlacementNodeLeave struct {
+	NodeId fs.NodeId
+}
+
+func (PlacementNodeLeave) PlacementMessage() {}
 
 // State machine is Unavailable -> Available
 const (

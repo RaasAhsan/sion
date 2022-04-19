@@ -96,6 +96,9 @@ func (n *Node) Monitor(c *Cluster) {
 				c.Lock()
 				defer c.Unlock()
 				c.DeleteNode(n.Id)
+				// By the time placement subsystem processes this message, cluster API will no longer
+				// know of this node; in this case, we can assume the node no longer exists.
+				c.placementMsgs <- PlacementNodeLeave{NodeId: n.Id}
 				log.Printf("Node %s timed out\n", n.Id)
 				return
 			}
