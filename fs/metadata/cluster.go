@@ -17,16 +17,16 @@ import (
 // Cluster system can dispatch operations to the namespace (e.g. remove all assignments for a node.)
 
 type Cluster struct {
-	nodes             map[fs.NodeId]*Node
-	placementRequests chan fs.NodeId
+	nodes         map[fs.NodeId]*Node
+	placementMsgs chan PlacementMessage
 	// TODO: switch to RWMutex
 	sync.Mutex
 }
 
-func NewCluster(placementRequests chan fs.NodeId) *Cluster {
+func NewCluster(placementMsgs chan PlacementMessage) *Cluster {
 	return &Cluster{
-		nodes:             make(map[fs.NodeId]*Node),
-		placementRequests: placementRequests,
+		nodes:         make(map[fs.NodeId]*Node),
+		placementMsgs: placementMsgs,
 	}
 }
 
@@ -50,7 +50,7 @@ func (c *Cluster) AddNode(id fs.NodeId, address fs.NodeAddress) {
 	go node.Monitor(c)
 
 	c.nodes[id] = node
-	c.placementRequests <- id
+	c.placementMsgs <- PlacementNodeJoin{NodeId: node.Id}
 
 	log.Printf("Node %s (%s) joined cluster\n", id, address)
 }

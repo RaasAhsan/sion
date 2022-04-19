@@ -17,15 +17,15 @@ type Placement struct {
 	chunkPlacements map[fs.ChunkId]*ChunkPlacement
 	nodeAssignments map[fs.NodeId]*NodeAssignment
 	// TODO: refine this later
-	requests chan fs.NodeId
+	messages chan PlacementMessage
 	sync.Mutex
 }
 
-func NewPlacement(requests chan fs.NodeId) *Placement {
+func NewPlacement(messages chan PlacementMessage) *Placement {
 	p := &Placement{
 		chunkPlacements: make(map[fs.ChunkId]*ChunkPlacement),
 		nodeAssignments: make(map[fs.NodeId]*NodeAssignment),
-		requests:        requests,
+		messages:        messages,
 	}
 	go p.ProcessRequests()
 	return p
@@ -34,12 +34,34 @@ func NewPlacement(requests chan fs.NodeId) *Placement {
 func (p *Placement) ProcessRequests() {
 	log.Printf("Started placement request processing")
 	for {
-		req := <-p.requests
+		msg := <-p.messages
 		func() {
 			p.Lock()
 			defer p.Unlock()
-			p.NodeJoin(req)
+			switch m := msg.(type) {
+			case PlacementNodeJoin:
+				p.NodeJoin(m.NodeId)
+			default:
+			}
 		}()
+	}
+}
+
+func (p *Placement) NodeJoin(nodeId fs.NodeId) {
+	node := &NodeAssignment{
+		Id:       nodeId,
+		Chunks:   make([]fs.ChunkId, 0),
+		Sequence: 0,
+		Log:      make([]int, 0),
+	}
+	p.nodeAssignments[nodeId] = node
+	// TODO: allow a chunk to report its chunks on registration
+}
+
+func (p *Placement) NodeLeave(nodeId fs.NodeId) {
+	for _, chunkId := range p.nodeAssignments[nodeId].Chunks {
+		placement := p.chunkPlacements[chunkId]
+		delete(placement.replicas, nodeId)
 	}
 }
 
@@ -87,29 +109,21 @@ type NodeAssignment struct {
 
 type ReplicaStatus int
 
+type PlacementMessage interface {
+	PlacementMessage()
+}
+
+type PlacementNodeJoin struct {
+	NodeId fs.NodeId
+}
+
+func (PlacementNodeJoin) PlacementMessage() {}
+
 // State machine is Unavailable -> Available
 const (
 	Unavailable ReplicaStatus = iota
 	Available
 )
-
-func (p *Placement) NodeJoin(nodeId fs.NodeId) {
-	node := &NodeAssignment{
-		Id:       nodeId,
-		Chunks:   make([]fs.ChunkId, 0),
-		Sequence: 0,
-		Log:      make([]int, 0),
-	}
-	p.nodeAssignments[nodeId] = node
-	// TODO: allow a chunk to report its chunks on registration
-}
-
-func (p *Placement) NodeLeave(nodeId fs.NodeId) {
-	for _, chunkId := range p.nodeAssignments[nodeId].Chunks {
-		placement := p.chunkPlacements[chunkId]
-		delete(placement.replicas, nodeId)
-	}
-}
 
 func AssignChunkToNode(chunkId fs.ChunkId, nodeId fs.NodeId) {
 

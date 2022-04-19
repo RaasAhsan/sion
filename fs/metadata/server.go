@@ -118,11 +118,11 @@ func (h *MetadataHandler) AppendChunkToFile(w http.ResponseWriter, r *http.Reque
 func server() {
 	r := mux.NewRouter()
 
-	placementRequests := make(chan fs.NodeId)
+	placementMsgs := make(chan PlacementMessage)
 	handler := &MetadataHandler{
 		Namespace: NewNamespace(),
-		Cluster:   NewCluster(placementRequests),
-		Placement: NewPlacement(placementRequests),
+		Cluster:   NewCluster(placementMsgs),
+		Placement: NewPlacement(placementMsgs),
 	}
 
 	r.HandleFunc("/join", handler.Join).Methods("POST")
