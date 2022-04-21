@@ -57,6 +57,7 @@ func (h *MetadataHandler) GetFile(w http.ResponseWriter, r *http.Request) {
 // 	return
 // }
 
+// TODO: place these in namespace module?
 func (h *MetadataHandler) CreateFile(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	path := Path(params["path"])
@@ -84,7 +85,7 @@ func (h *MetadataHandler) CreateFile(w http.ResponseWriter, r *http.Request) {
 	w.Write(json)
 }
 
-func (h *MetadataHandler) AppendChunkToFile(w http.ResponseWriter, r *http.Request) {
+func (h *MetadataHandler) AppendChunk(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	path := Path(params["path"])
 
@@ -92,17 +93,19 @@ func (h *MetadataHandler) AppendChunkToFile(w http.ResponseWriter, r *http.Reque
 	h.Namespace.Lock()
 	defer h.Namespace.Unlock()
 
-	if !h.Namespace.FileExists(path) {
+	file := h.Namespace.GetFile(path)
+	if file == nil {
 		http.Error(w, "File does not exist", http.StatusBadRequest)
 		return
 	}
 
 	chunk := NewChunk()
+	file.AppendChunk(chunk)
 
 	nodeId := func() fs.NodeId {
 		h.Placement.Lock()
 		defer h.Placement.Unlock()
-		return h.Placement.PlaceChunk(chunk)
+		return h.Placement.PlaceChunk(chunk.id)
 	}()
 
 	address := func() fs.NodeAddress {
@@ -113,6 +116,49 @@ func (h *MetadataHandler) AppendChunkToFile(w http.ResponseWriter, r *http.Reque
 	}()
 
 	w.Write([]byte(string(address)))
+}
+
+func (h *MetadataHandler) GetChunks(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	path := Path(params["path"])
+
+	// TODO: fix this locking, don't need it while querying placement
+	h.Namespace.Lock()
+	defer h.Namespace.Unlock()
+
+	file := h.Namespace.GetFile(path)
+	if file == nil {
+		http.Error(w, "File does not exist", http.StatusBadRequest)
+		return
+	}
+
+	type chunkLocation struct {
+		Id    fs.ChunkId
+		Nodes []fs.NodeId
+	}
+
+	chunks := make([]chunkLocation, 0)
+
+	h.Placement.Lock()
+	defer h.Placement.Unlock()
+
+	h.Cluster.Lock()
+	defer h.Cluster.Unlock()
+
+	for _, chunk := range file.mappings {
+		// TODO: this can error
+		placements := h.Placement.GetPlacements(chunk.id)
+		chunks = append(chunks, chunkLocation{Id: chunk.id, Nodes: placements})
+	}
+
+	jsonBytes, err := json.MarshalIndent(chunks, "", "  ")
+	if err != nil {
+		http.Error(w, "Failed to return response", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.Write(jsonBytes)
 }
 
 func server() {
@@ -130,7 +176,8 @@ func server() {
 
 	r.HandleFunc("/files/{path}", handler.GetFile).Methods("GET")
 	r.HandleFunc("/files/{path}", handler.CreateFile).Methods("POST")
-	r.HandleFunc("/files/{path}/chunks", handler.AppendChunkToFile).Methods("POST")
+	r.HandleFunc("/files/{path}/chunks", handler.GetChunks).Methods("GET")
+	r.HandleFunc("/files/{path}/chunks", handler.AppendChunk).Methods("POST")
 
 	server := http.Server{
 		Handler: r,

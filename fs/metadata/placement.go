@@ -54,23 +54,24 @@ func (p *Placement) ProcessMessages() {
 
 func (p *Placement) NodeJoin(nodeId fs.NodeId) {
 	node := &NodeAssignment{
-		Id:       nodeId,
-		Chunks:   make([]fs.ChunkId, 0),
-		Sequence: 0,
-		Log:      make([]int, 0),
+		id:       nodeId,
+		chunks:   make([]fs.ChunkId, 0),
+		sequence: 0,
+		log:      make([]int, 0),
 	}
 	p.nodeAssignments[nodeId] = node
 	// TODO: allow a chunk to report its chunks on registration
 }
 
 func (p *Placement) NodeLeave(nodeId fs.NodeId) {
-	for _, chunkId := range p.nodeAssignments[nodeId].Chunks {
+	for _, chunkId := range p.nodeAssignments[nodeId].chunks {
 		placement := p.chunkPlacements[chunkId]
 		delete(placement.replicas, nodeId)
 	}
 }
 
-func (p *Placement) PlaceChunk(c *Chunk) fs.NodeId {
+// TODO: return an error if this can fail
+func (p *Placement) PlaceChunk(chunkId fs.ChunkId) fs.NodeId {
 	// TODO: go 1.19 we can use a generic method
 	keys := make([]fs.NodeId, len(p.nodeAssignments))
 	i := 0
@@ -80,24 +81,37 @@ func (p *Placement) PlaceChunk(c *Chunk) fs.NodeId {
 
 	// TODO: create an interface for placement strategy
 	node := p.nodeAssignments[keys[rand.Intn(len(keys))]]
-	node.Chunks = append(node.Chunks, c.id)
+	node.chunks = append(node.chunks, chunkId)
 
 	replicas := make(map[fs.NodeId]ReplicaStatus)
-	replicas[node.Id] = Unavailable
+	replicas[node.id] = Unavailable
 	placement := &ChunkPlacement{
-		chunkId:  c.id,
+		chunkId:  chunkId,
 		replicas: replicas,
-		chunk:    c,
 	}
-	p.chunkPlacements[c.id] = placement
+	p.chunkPlacements[chunkId] = placement
 
-	return node.Id
+	return node.id
+}
+
+func (p *Placement) GetPlacements(id fs.ChunkId) []fs.NodeId {
+	placement := p.chunkPlacements[id]
+	if placement == nil {
+		return nil
+	}
+
+	nodeIds := make([]fs.NodeId, len(placement.replicas))
+	i := 0
+	for k := range p.nodeAssignments {
+		nodeIds[i] = k
+	}
+
+	return nodeIds
 }
 
 type ChunkPlacement struct {
 	chunkId  fs.ChunkId
 	replicas map[fs.NodeId]ReplicaStatus
-	chunk    *Chunk
 }
 
 func (p *ChunkPlacement) ReplicaCount() int {
@@ -106,10 +120,10 @@ func (p *ChunkPlacement) ReplicaCount() int {
 
 // TODO: could potentially store a pointer to *Node here, better if we consult cluster first though?
 type NodeAssignment struct {
-	Id       fs.NodeId
-	Chunks   []fs.ChunkId
-	Sequence int
-	Log      []int
+	id       fs.NodeId
+	chunks   []fs.ChunkId
+	sequence int
+	log      []int
 }
 
 type ReplicaStatus int
