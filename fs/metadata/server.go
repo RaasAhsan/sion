@@ -142,9 +142,6 @@ func (h *MetadataHandler) GetChunks(w http.ResponseWriter, r *http.Request) {
 	h.Placement.Lock()
 	defer h.Placement.Unlock()
 
-	h.Cluster.Lock()
-	defer h.Cluster.Unlock()
-
 	for _, chunk := range file.mappings {
 		// TODO: this can error
 		placements := h.Placement.GetPlacements(chunk.id)

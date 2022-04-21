@@ -153,11 +153,3 @@ const (
 	Unavailable ReplicaStatus = iota
 	Available
 )
-
-func AssignChunkToNode(chunkId fs.ChunkId, nodeId fs.NodeId) {
-
-}
-
-func UnassignChunkFromNode(chunkId fs.ChunkId, nodeId fs.NodeId) {
-
-}
