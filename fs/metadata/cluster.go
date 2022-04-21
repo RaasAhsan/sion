@@ -34,6 +34,16 @@ func (c *Cluster) GetNode(id fs.NodeId) *Node {
 	return c.nodes[id]
 }
 
+func (c *Cluster) GetAllNodes() []*Node {
+	nodes := make([]*Node, len(c.nodes))
+	i := 0
+	for id := range c.nodes {
+		nodes[i] = c.nodes[id]
+		i += 1
+	}
+	return nodes
+}
+
 // TODO: separate into NewNode and AddNode
 func (c *Cluster) AddNode(id fs.NodeId, address fs.NodeAddress) {
 	node := &Node{
@@ -68,6 +78,14 @@ func (c *Cluster) HeartbeatNode(id fs.NodeId) error {
 	node.Heartbeat()
 	return nil
 }
+
+type NodeStatus int
+
+const (
+	Online NodeStatus = iota
+	Offline
+	Decommissioned
+)
 
 type Node struct {
 	Id                fs.NodeId
@@ -110,14 +128,6 @@ func (node *Node) Heartbeat() {
 	node.TimeLastHeartbeat = time.Now().Unix()
 	node.HeartbeatChannel <- true
 }
-
-type NodeStatus int
-
-const (
-	Online NodeStatus = iota
-	Offline
-	Decommissioned
-)
 
 func (h *MetadataHandler) Join(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
@@ -166,4 +176,25 @@ func (h *MetadataHandler) Heartbeat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write([]byte("heartbeat: ok"))
+}
+
+func (h *MetadataHandler) GetNodeAddresses(w http.ResponseWriter, r *http.Request) {
+	addresses := make(map[fs.NodeId]fs.NodeAddress)
+
+	h.Cluster.Lock()
+	defer h.Cluster.Unlock()
+
+	nodes := h.Cluster.GetAllNodes()
+	for _, node := range nodes {
+		addresses[node.Id] = node.Address
+	}
+
+	jsonBytes, err := json.MarshalIndent(addresses, "", "  ")
+	if err != nil {
+		http.Error(w, "Failed to return response", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.Write(jsonBytes)
 }

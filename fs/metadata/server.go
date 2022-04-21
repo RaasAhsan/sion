@@ -173,6 +173,7 @@ func server() {
 
 	r.HandleFunc("/join", handler.Join).Methods("POST")
 	r.HandleFunc("/heartbeat", handler.Heartbeat).Methods("POST")
+	r.HandleFunc("/nodes", handler.GetNodeAddresses).Methods("GET")
 
 	r.HandleFunc("/files/{path}", handler.GetFile).Methods("GET")
 	r.HandleFunc("/files/{path}", handler.CreateFile).Methods("POST")

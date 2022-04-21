@@ -77,6 +77,7 @@ func (p *Placement) PlaceChunk(chunkId fs.ChunkId) fs.NodeId {
 	i := 0
 	for k := range p.nodeAssignments {
 		keys[i] = k
+		i += 1
 	}
 
 	// TODO: create an interface for placement strategy
@@ -104,6 +105,7 @@ func (p *Placement) GetPlacements(id fs.ChunkId) []fs.NodeId {
 	i := 0
 	for k := range p.nodeAssignments {
 		nodeIds[i] = k
+		i += 1
 	}
 
 	return nodeIds
