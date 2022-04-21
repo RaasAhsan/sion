@@ -27,12 +27,15 @@ func NewPlacement(messages chan PlacementMessage) *Placement {
 		nodeAssignments: make(map[fs.NodeId]*NodeAssignment),
 		messages:        messages,
 	}
-	go p.ProcessRequests()
+	go p.ProcessMessages()
 	return p
 }
 
-func (p *Placement) ProcessRequests() {
-	log.Printf("Started placement request processing")
+// TODO: we can use the http.Handler pattern where the message itself
+// has a handler method which we call in this method without
+// performing a type switch.
+func (p *Placement) ProcessMessages() {
+	log.Printf("Started placement message processing")
 	for {
 		msg := <-p.messages
 		func() {
@@ -111,6 +114,8 @@ type NodeAssignment struct {
 
 type ReplicaStatus int
 
+// TODO: if we aren't going to have any more message types, we can
+// collapse these into one struct probably
 type PlacementMessage interface {
 	PlacementMessage()
 }

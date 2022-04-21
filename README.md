@@ -5,7 +5,7 @@ Sion is a scalable, distributed file system designed to reliably store and serve
 Sion does not expose a traditional POSIX file system API to clients. Instead, it exposes an HTTP+JSON API with which all namespace and chunk operations are performed. 
 
 ## Architecture
-A Sion cluster contains a primary master which directs the state of the cluster, and many storage nodes which store and serve files.
+A Sion cluster contains a primary master which manages the state of the cluster (the control plane), and many storage nodes which store and serve files (the data plane).
 
 ### Master
 A Sion master performs three major processes: cluster management, namespace management, and placement. Each process is compartmentalized into its own subsystem:
