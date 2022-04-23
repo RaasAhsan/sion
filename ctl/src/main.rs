@@ -1,10 +1,13 @@
 mod chunked_reader;
+mod metadata_client;
+mod storage_client;
 
 use crc32fast::Hasher;
 use reqwest::blocking::{Body, Client};
+use storage_client::StorageClient;
 use std::{
-    io::{self, Read},
-    sync::{Arc, Mutex},
+    io::{self, Read, Result},
+    sync::{Arc, Mutex}, fs::File,
 };
 
 use chunked_reader::ChunkedReader;
@@ -23,33 +26,75 @@ fn upload_chunk() {
     println!("{}", resp.text().unwrap());
 }
 
-fn upload_stream() {
-    let mut id = 1;
+trait FileSystem {
+    fn copy_stdin_to_remote(&self, dest_path: &str) -> Result<i32>;
+    fn copy_local_to_remote(&self, source_path: &str, dest_path: &str) -> Result<i32>;
+}
 
-    let client = Client::new();
-    loop {
-        let done = Arc::new(Mutex::new(false));
-        let reader = ChunkedReader::new(io::stdin(), CHUNK_SIZE, done.clone());
-        let body = Body::new(reader);
-        let chunk_name = format!("chunk-{}", id);
-        let resp = client
-            .post(format!("http://localhost:8080/chunks/{}", chunk_name))
-            .body(body)
-            .send()
-            .unwrap();
+// implement: cat, cp
 
-        println!("{}", resp.text().unwrap());
+pub struct FileSystemImpl {
+    
+}
 
-        if *done.lock().unwrap() {
-            break;
+impl FileSystem for FileSystemImpl {
+    fn copy_stdin_to_remote(&self, dest_path: &str) -> Result<i32> {
+        let mut id = 1;
+    
+        let client = Client::new();
+        loop {
+            let done = Arc::new(Mutex::new(false));
+            let reader = ChunkedReader::new(io::stdin(), CHUNK_SIZE, done.clone());
+            let body = Body::new(reader);
+            let chunk_name = format!("chunk-{}", id);
+            let resp = client
+                .post(format!("http://localhost:8080/chunks/{}", chunk_name))
+                .body(body)
+                .send()
+                .unwrap();
+    
+            println!("{}", resp.text().unwrap());
+    
+            if *done.lock().unwrap() {
+                break;
+            }
+            id += 1;
         }
-        id += 1;
+
+        Result::Ok(2)
+    }
+
+    fn copy_local_to_remote(&self, source_path: &str, dest_path: &str) -> Result<i32> {
+        let mut id = 3;
+        let file = File::open(source_path).unwrap();
+    
+        let client = Client::new();
+        loop {
+            let done = Arc::new(Mutex::new(false));
+            let reader = ChunkedReader::new(io::stdin(), CHUNK_SIZE, done.clone());
+            let body = Body::new(reader);
+            let chunk_name = format!("chunk-{}", id);
+            let resp = client
+                .post(format!("http://localhost:8080/chunks/{}", chunk_name))
+                .body(body)
+                .send()
+                .unwrap();
+    
+            println!("{}", resp.text().unwrap());
+    
+            if *done.lock().unwrap() {
+                break;
+            }
+            id += 1;
+        }
+
+        Result::Ok(2)
     }
 }
 
 fn main() {
     // upload_chunk();
-    upload_stream();
+    // upload_stream();
 }
 
 fn main2() {
