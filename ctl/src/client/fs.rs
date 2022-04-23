@@ -12,19 +12,19 @@ const CHUNK_SIZE: usize = 8 * 1024 * 1024;
 
 // TODO: what is the interface we would like to expose here?
 pub struct FileSystem {
-    metadata: MetadataClient,
+    pub metadata: MetadataClient,
     client: Client
 }
 
 impl FileSystem {
 
-    fn connect(address: &str) -> FileSystem {
+    pub fn connect(address: &str) -> FileSystem {
         let client = Client::new();
         let metadata = MetadataClient::new(address, client.clone());
         FileSystem { metadata, client }
     }
 
-    fn open(&self, path: &str) -> io::Result<File> {
+    pub fn open(&self, path: &str) -> io::Result<File> {
 
 
         todo!()

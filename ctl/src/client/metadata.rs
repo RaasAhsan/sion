@@ -34,7 +34,7 @@ impl MetadataClient {
         todo!()
     }
 
-    fn version(&self) -> Result<String, ()> {
+    pub fn version(&self) -> Result<String, ()> {
         // let body = Body::new(io::stdin());
         let resp = self.client
             .get(format!("{}/version", self.address))

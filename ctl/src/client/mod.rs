@@ -1,6 +1,6 @@
 use std::io::{Read, Seek};
 
-mod fs;
+pub mod fs;
 mod metadata;
 mod storage;
 

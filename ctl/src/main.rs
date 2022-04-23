@@ -23,6 +23,11 @@ fn upload_chunk() {
 fn main() {
     // upload_chunk();
     // upload_stream();
+
+    let fs = client::fs::FileSystem::connect("http://localhost:8000");
+    let version = fs.metadata.version().unwrap();
+
+    println!("{}", version);
 }
 
 fn main2() {
