@@ -1,13 +1,10 @@
+mod cli;
 mod client;
 mod util;
 
 use crc32fast::Hasher;
 use reqwest::blocking::{Body, Client};
-use std::{
-    fs::File,
-    io::{self, Read, Result},
-    sync::{Arc, Mutex},
-};
+use std::io::{self, Read};
 
 const BUFFER_SIZE: usize = 256;
 const CHUNK_SIZE: usize = 8 * 1024 * 1024;
