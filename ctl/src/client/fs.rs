@@ -6,21 +6,22 @@ use std::{
 
 use crate::util::chunked_reader::ChunkedReader;
 
-use super::{File, metadata_client::MetadataClientImpl};
+use super::{File, metadata::MetadataClient};
 
 const CHUNK_SIZE: usize = 8 * 1024 * 1024;
 
 // TODO: what is the interface we would like to expose here?
 pub struct FileSystem {
-    metadata_client: MetadataClientImpl
+    metadata: MetadataClient,
+    client: Client
 }
-
-pub struct FileSystemImpl {}
 
 impl FileSystem {
 
     fn connect(address: &str) -> FileSystem {
-
+        let client = Client::new();
+        let metadata = MetadataClient::new(address, client.clone());
+        FileSystem { metadata, client }
     }
 
     fn open(&self, path: &str) -> io::Result<File> {
@@ -59,30 +60,30 @@ impl FileSystem {
         Result::Ok(2)
     }
 
-    fn copy_local_to_remote(&self, source_path: &str, dest_path: &str) -> io::Result<i32> {
-        let mut id = 3;
-        let file = std::fs::File::open(source_path).unwrap();
+    // fn copy_local_to_remote(&self, source_path: &str, dest_path: &str) -> io::Result<i32> {
+    //     let mut id = 3;
+    //     let file = std::fs::File::open(source_path).unwrap();
 
-        let client = Client::new();
-        loop {
-            let done = Arc::new(Mutex::new(false));
-            let reader = ChunkedReader::new(file, CHUNK_SIZE, done.clone());
-            let body = Body::new(reader);
-            let chunk_name = format!("chunk-{}", id);
-            let resp = client
-                .post(format!("http://localhost:8080/chunks/{}", chunk_name))
-                .body(body)
-                .send()
-                .unwrap();
+    //     let client = Client::new();
+    //     loop {
+    //         let done = Arc::new(Mutex::new(false));
+    //         let reader = ChunkedReader::new(&file, CHUNK_SIZE, done.clone());
+    //         let body = Body::new(reader);
+    //         let chunk_name = format!("chunk-{}", id);
+    //         let resp = client
+    //             .post(format!("http://localhost:8080/chunks/{}", chunk_name))
+    //             .body(body)
+    //             .send()
+    //             .unwrap();
 
-            println!("{}", resp.text().unwrap());
+    //         println!("{}", resp.text().unwrap());
 
-            if *done.lock().unwrap() {
-                break;
-            }
-            id += 1;
-        }
+    //         if *done.lock().unwrap() {
+    //             break;
+    //         }
+    //         id += 1;
+    //     }
 
-        Result::Ok(2)
-    }
+    //     Result::Ok(2)
+    // }
 }

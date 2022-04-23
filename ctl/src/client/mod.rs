@@ -1,8 +1,8 @@
 use std::io::{Read, Seek};
 
 mod fs;
-mod metadata_client;
-mod storage_client;
+mod metadata;
+mod storage;
 
 pub struct File {
 
