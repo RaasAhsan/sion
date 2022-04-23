@@ -1,13 +1,12 @@
-mod chunked_reader;
-mod metadata_client;
-mod storage_client;
-mod file_system;
+mod client;
+mod util;
 
 use crc32fast::Hasher;
 use reqwest::blocking::{Body, Client};
 use std::{
+    fs::File,
     io::{self, Read, Result},
-    sync::{Arc, Mutex}, fs::File,
+    sync::{Arc, Mutex},
 };
 
 const BUFFER_SIZE: usize = 256;

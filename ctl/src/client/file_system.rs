@@ -1,7 +1,11 @@
-use std::{io, sync::{Arc, Mutex}, fs::File};
-use reqwest::blocking::{Client, Body};
+use reqwest::blocking::{Body, Client};
+use std::{
+    fs::File,
+    io,
+    sync::{Arc, Mutex},
+};
 
-use crate::chunked_reader::ChunkedReader;
+use crate::util::chunked_reader::ChunkedReader;
 
 const CHUNK_SIZE: usize = 8 * 1024 * 1024;
 
@@ -12,14 +16,12 @@ trait FileSystem {
 
 // implement: cat, cp, rm, ls
 
-pub struct FileSystemImpl {
-    
-}
+pub struct FileSystemImpl {}
 
 impl FileSystem for FileSystemImpl {
     fn copy_stdin_to_remote(&self, dest_path: &str) -> io::Result<i32> {
         let mut id = 1;
-    
+
         let client = Client::new();
         loop {
             let done = Arc::new(Mutex::new(false));
@@ -31,9 +33,9 @@ impl FileSystem for FileSystemImpl {
                 .body(body)
                 .send()
                 .unwrap();
-    
+
             println!("{}", resp.text().unwrap());
-    
+
             if *done.lock().unwrap() {
                 break;
             }
@@ -46,7 +48,7 @@ impl FileSystem for FileSystemImpl {
     fn copy_local_to_remote(&self, source_path: &str, dest_path: &str) -> io::Result<i32> {
         let mut id = 3;
         let file = File::open(source_path).unwrap();
-    
+
         let client = Client::new();
         loop {
             let done = Arc::new(Mutex::new(false));
@@ -58,9 +60,9 @@ impl FileSystem for FileSystemImpl {
                 .body(body)
                 .send()
                 .unwrap();
-    
+
             println!("{}", resp.text().unwrap());
-    
+
             if *done.lock().unwrap() {
                 break;
             }

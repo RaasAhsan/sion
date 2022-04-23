@@ -8,13 +8,8 @@ pub struct StorageClient {
 impl StorageClient {
     // TODO: reinitialize for each call or pass address in?
     pub fn new(address: String, client: Client) -> StorageClient {
-        StorageClient {
-            address,
-            client
-        }
+        StorageClient { address, client }
     }
 
-    fn upload_file(&self, chunk_id: &str) {
-        
-    }
+    fn upload_file(&self, chunk_id: &str) {}
 }
