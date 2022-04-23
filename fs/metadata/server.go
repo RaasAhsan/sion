@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -161,10 +162,21 @@ func (h *MetadataHandler) GetChunks(w http.ResponseWriter, r *http.Request) {
 func Version(w http.ResponseWriter, r *http.Request) {
 	type version struct {
 		ServerVersion string
+		MajorVersion  int
+		MinorVersion  int
+		PatchVersion  int
 	}
 
+	majorVersion := 1
+	minorVersion := 0
+	patchVersion := 0
+	serverVersion := fmt.Sprintf("%d.%d.%d", majorVersion, minorVersion, patchVersion)
+
 	body := version{
-		ServerVersion: "1.0.0",
+		ServerVersion: serverVersion,
+		MajorVersion:  majorVersion,
+		MinorVersion:  minorVersion,
+		PatchVersion:  patchVersion,
 	}
 
 	jsonBytes, err := json.MarshalIndent(body, "", "  ")

@@ -24,7 +24,7 @@ func (n *Namespace) FileExists(path Path) bool {
 }
 
 func (n *Namespace) AddFile(file *File) {
-	n.files[file.path] = file
+	n.files[file.Path] = file
 }
 
 func (n *Namespace) GetFile(path Path) *File {
@@ -33,10 +33,10 @@ func (n *Namespace) GetFile(path Path) *File {
 
 // File inode
 type File struct {
-	path         Path
-	timeCreated  int64
-	timeModified int64
-	size         uint // TODO: can file size be determined easily?
+	Path         Path
+	TimeCreated  int64
+	TimeModified int64
+	Size         uint // TODO: can file size be determined easily?
 	mappings     []*Chunk
 }
 
@@ -46,10 +46,10 @@ func (f *File) AppendChunk(c *Chunk) {
 
 func NewFile(path Path) *File {
 	return &File{
-		path:         path,
-		timeCreated:  time.Now().Unix(),
-		timeModified: time.Now().Unix(),
-		size:         0,
+		Path:         path,
+		TimeCreated:  time.Now().Unix(),
+		TimeModified: time.Now().Unix(),
+		Size:         0,
 		mappings:     make([]*Chunk, 0),
 	}
 }

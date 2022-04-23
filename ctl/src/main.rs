@@ -26,8 +26,10 @@ fn main() {
 
     let fs = client::fs::FileSystem::connect("http://localhost:8000");
     let version = fs.metadata.version().unwrap();
-
     println!("{:?}", version);
+
+    let file = fs.open("helloworld.txt").unwrap();
+    println!("{}", file.path);
 }
 
 fn main2() {

@@ -5,9 +5,9 @@ mod metadata;
 mod storage;
 
 pub struct File {
-    path: String,
-    size: u64,
-    offset: u64
+    pub path: String,
+    pub size: u64,
+    pub offset: u64
 }
 
 impl File {
