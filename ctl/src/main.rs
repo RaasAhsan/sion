@@ -1,16 +1,14 @@
 mod chunked_reader;
 mod metadata_client;
 mod storage_client;
+mod file_system;
 
 use crc32fast::Hasher;
 use reqwest::blocking::{Body, Client};
-use storage_client::StorageClient;
 use std::{
     io::{self, Read, Result},
     sync::{Arc, Mutex}, fs::File,
 };
-
-use chunked_reader::ChunkedReader;
 
 const BUFFER_SIZE: usize = 256;
 const CHUNK_SIZE: usize = 8 * 1024 * 1024;
@@ -24,72 +22,6 @@ fn upload_chunk() {
         .send()
         .unwrap();
     println!("{}", resp.text().unwrap());
-}
-
-trait FileSystem {
-    fn copy_stdin_to_remote(&self, dest_path: &str) -> Result<i32>;
-    fn copy_local_to_remote(&self, source_path: &str, dest_path: &str) -> Result<i32>;
-}
-
-// implement: cat, cp
-
-pub struct FileSystemImpl {
-    
-}
-
-impl FileSystem for FileSystemImpl {
-    fn copy_stdin_to_remote(&self, dest_path: &str) -> Result<i32> {
-        let mut id = 1;
-    
-        let client = Client::new();
-        loop {
-            let done = Arc::new(Mutex::new(false));
-            let reader = ChunkedReader::new(io::stdin(), CHUNK_SIZE, done.clone());
-            let body = Body::new(reader);
-            let chunk_name = format!("chunk-{}", id);
-            let resp = client
-                .post(format!("http://localhost:8080/chunks/{}", chunk_name))
-                .body(body)
-                .send()
-                .unwrap();
-    
-            println!("{}", resp.text().unwrap());
-    
-            if *done.lock().unwrap() {
-                break;
-            }
-            id += 1;
-        }
-
-        Result::Ok(2)
-    }
-
-    fn copy_local_to_remote(&self, source_path: &str, dest_path: &str) -> Result<i32> {
-        let mut id = 3;
-        let file = File::open(source_path).unwrap();
-    
-        let client = Client::new();
-        loop {
-            let done = Arc::new(Mutex::new(false));
-            let reader = ChunkedReader::new(io::stdin(), CHUNK_SIZE, done.clone());
-            let body = Body::new(reader);
-            let chunk_name = format!("chunk-{}", id);
-            let resp = client
-                .post(format!("http://localhost:8080/chunks/{}", chunk_name))
-                .body(body)
-                .send()
-                .unwrap();
-    
-            println!("{}", resp.text().unwrap());
-    
-            if *done.lock().unwrap() {
-                break;
-            }
-            id += 1;
-        }
-
-        Result::Ok(2)
-    }
 }
 
 fn main() {
