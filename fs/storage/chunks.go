@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bufio"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -64,17 +65,19 @@ func (h *StorageHandler) UploadChunk(w http.ResponseWriter, r *http.Request) {
 
 	// Open chunk file for writing
 	filename := fmt.Sprintf("./testdir/data/%s", chunkId)
-	out, err := os.Create(filename)
+	f, err := os.Create(filename)
 	if err != nil {
 		http.Error(w, "Failed to create file", http.StatusInternalServerError)
 		return
 	}
-	defer out.Close()
+	defer f.Close()
 
 	crc := crc32.NewIEEE()
 
 	reader := http.MaxBytesReader(w, r.Body, fs.ChunkSize)
-	writer := io.MultiWriter(crc, out)
+	// TODO: potentially we want to write to a buffer then flush it. check syscalls
+	bufferedWriter := bufio.NewWriter(f)
+	writer := io.MultiWriter(crc, bufferedWriter)
 
 	bytes, err := io.Copy(writer, reader)
 	if err != nil {
@@ -85,7 +88,21 @@ func (h *StorageHandler) UploadChunk(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Failed to delete chunk %s\n", filename)
 		}
 
-		http.Error(w, "Failed to write chunk", http.StatusInternalServerError)
+		http.Error(w, "Failed to copy chunk", http.StatusInternalServerError)
+		return
+	}
+
+	// Flush application buffer to OS
+	err = bufferedWriter.Flush()
+	if err != nil {
+		http.Error(w, "Failed to flush chunk", http.StatusInternalServerError)
+		return
+	}
+
+	// Sync OS buffer to disk
+	err = f.Sync()
+	if err != nil {
+		http.Error(w, "Failed to sync chunk", http.StatusInternalServerError)
 		return
 	}
 
