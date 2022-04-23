@@ -158,6 +158,25 @@ func (h *MetadataHandler) GetChunks(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonBytes)
 }
 
+func Version(w http.ResponseWriter, r *http.Request) {
+	type version struct {
+		ServerVersion string
+	}
+
+	body := version{
+		ServerVersion: "1.0.0",
+	}
+
+	jsonBytes, err := json.MarshalIndent(body, "", "  ")
+	if err != nil {
+		http.Error(w, "Failed to return response", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.Write(jsonBytes)
+}
+
 func server() {
 	r := mux.NewRouter()
 
@@ -176,6 +195,8 @@ func server() {
 	r.HandleFunc("/files/{path}", handler.CreateFile).Methods("POST")
 	r.HandleFunc("/files/{path}/chunks", handler.GetChunks).Methods("GET")
 	r.HandleFunc("/files/{path}/chunks", handler.AppendChunk).Methods("POST")
+
+	r.HandleFunc("/version", Version).Methods("GET")
 
 	server := http.Server{
 		Handler: r,

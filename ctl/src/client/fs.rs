@@ -1,24 +1,38 @@
 use reqwest::blocking::{Body, Client};
 use std::{
-    fs::File,
     io,
     sync::{Arc, Mutex},
 };
 
 use crate::util::chunked_reader::ChunkedReader;
 
+use super::{File, metadata_client::MetadataClientImpl};
+
 const CHUNK_SIZE: usize = 8 * 1024 * 1024;
 
-trait FileSystem {
-    fn copy_stdin_to_remote(&self, dest_path: &str) -> io::Result<i32>;
-    fn copy_local_to_remote(&self, source_path: &str, dest_path: &str) -> io::Result<i32>;
+// TODO: what is the interface we would like to expose here?
+pub struct FileSystem {
+    metadata_client: MetadataClientImpl
 }
-
-// implement: cat, cp, rm, ls
 
 pub struct FileSystemImpl {}
 
-impl FileSystem for FileSystemImpl {
+impl FileSystem {
+
+    fn connect(address: &str) -> FileSystem {
+
+    }
+
+    fn open(&self, path: &str) -> io::Result<File> {
+
+
+        todo!()
+    }
+    // fn copy_stdin_to_remote(&self, dest_path: &str) -> io::Result<i32>;
+    // fn copy_local_to_remote(&self, source_path: &str, dest_path: &str) -> io::Result<i32>;
+    // fn copy_remote_to_local(&self, dest_path: &str, source_path: &str) -> io::Result<i32>;
+    // fn copy_remote_to_remote(&self, dest_path: &str, source_path: &str) -> io::Result<i32>;
+
     fn copy_stdin_to_remote(&self, dest_path: &str) -> io::Result<i32> {
         let mut id = 1;
 
@@ -47,12 +61,12 @@ impl FileSystem for FileSystemImpl {
 
     fn copy_local_to_remote(&self, source_path: &str, dest_path: &str) -> io::Result<i32> {
         let mut id = 3;
-        let file = File::open(source_path).unwrap();
+        let file = std::fs::File::open(source_path).unwrap();
 
         let client = Client::new();
         loop {
             let done = Arc::new(Mutex::new(false));
-            let reader = ChunkedReader::new(io::stdin(), CHUNK_SIZE, done.clone());
+            let reader = ChunkedReader::new(file, CHUNK_SIZE, done.clone());
             let body = Body::new(reader);
             let chunk_name = format!("chunk-{}", id);
             let resp = client
