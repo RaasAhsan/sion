@@ -5,7 +5,15 @@ mod metadata;
 mod storage;
 
 pub struct File {
+    path: String,
+    size: u64,
+    offset: u64
+}
 
+impl File {
+    fn new(path: String, size: u64) -> File {
+        File { path, size, offset: 0 }
+    }
 }
 
 impl Read for File {
@@ -13,7 +21,6 @@ impl Read for File {
         todo!()
     }
 }
-
 
 impl Read for &File {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {

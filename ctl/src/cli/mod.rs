@@ -1,20 +1,9 @@
+pub fn cat() {}
 
-pub fn cat() {
+pub fn cp() {}
 
-}
+pub fn mv() {}
 
-pub fn cp() {
+pub fn rm() {}
 
-}
-
-pub fn mv() {
-
-}
-
-pub fn rm() {
-
-}
-
-pub fn ls() {
-    
-}
+pub fn ls() {}

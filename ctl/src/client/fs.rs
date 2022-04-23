@@ -6,29 +6,30 @@ use std::{
 
 use crate::util::chunked_reader::ChunkedReader;
 
-use super::{File, metadata::MetadataClient};
+use super::{metadata::MetadataClient, File};
 
 const CHUNK_SIZE: usize = 8 * 1024 * 1024;
 
 // TODO: what is the interface we would like to expose here?
 pub struct FileSystem {
     pub metadata: MetadataClient,
-    client: Client
+    client: Client,
 }
 
 impl FileSystem {
-
+    // TODO: check version and fail if incompatible
     pub fn connect(address: &str) -> FileSystem {
         let client = Client::new();
         let metadata = MetadataClient::new(address, client.clone());
         FileSystem { metadata, client }
     }
 
-    pub fn open(&self, path: &str) -> io::Result<File> {
-
-
-        todo!()
+    pub fn open(&self, path: &str) -> Result<File, ()> {
+        let get_file = self.metadata.get_file(path)?;
+        let file = File::new(get_file.path, get_file.size);
+        Ok(file)
     }
+
     // fn copy_stdin_to_remote(&self, dest_path: &str) -> io::Result<i32>;
     // fn copy_local_to_remote(&self, source_path: &str, dest_path: &str) -> io::Result<i32>;
     // fn copy_remote_to_local(&self, dest_path: &str, source_path: &str) -> io::Result<i32>;

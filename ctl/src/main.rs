@@ -27,7 +27,7 @@ fn main() {
     let fs = client::fs::FileSystem::connect("http://localhost:8000");
     let version = fs.metadata.version().unwrap();
 
-    println!("{}", version);
+    println!("{:?}", version);
 }
 
 fn main2() {
