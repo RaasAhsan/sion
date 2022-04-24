@@ -7,11 +7,12 @@ import (
 
 	"github.com/RaasAhsan/sion/fs"
 	"github.com/RaasAhsan/sion/fs/api"
+	"github.com/RaasAhsan/sion/fs/util"
 	"github.com/gorilla/mux"
 )
 
-func StartMetadataProcess() {
-	server()
+func StartMetadataProcess(ready chan int) {
+	server(ready)
 }
 
 type MetadataHandler struct {
@@ -160,7 +161,7 @@ func Version(w http.ResponseWriter, r *http.Request) {
 	api.HttpOk(w, body)
 }
 
-func server() {
+func server(ready chan int) {
 	r := mux.NewRouter()
 
 	pmsgs := make(chan PlacementMessage)
@@ -181,12 +182,10 @@ func server() {
 
 	r.HandleFunc("/version", Version).Methods("GET")
 
-	server := http.Server{
+	server := &http.Server{
 		Handler: r,
 		Addr:    ":8000",
 	}
 
-	log.Println("Starting metadata HTTP server")
-
-	log.Fatal(server.ListenAndServe())
+	log.Fatal(util.ListenAndServeNotify(server, ready))
 }

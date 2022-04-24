@@ -173,7 +173,7 @@ func (h *MetadataHandler) Heartbeat(w http.ResponseWriter, r *http.Request) {
 	err = h.Cluster.HeartbeatNode(heartbeatReq.NodeId)
 	if err != nil {
 		http.Error(w, "Invalid node, please register", http.StatusNotFound)
-		return
+		log.Fatal("Node is not registered")
 	}
 
 	w.Write([]byte("heartbeat: ok"))

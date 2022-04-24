@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"log"
+
 	"github.com/RaasAhsan/sion/fs/metadata"
 	"github.com/RaasAhsan/sion/fs/storage"
 	"github.com/spf13/cobra"
@@ -16,11 +18,17 @@ var startCmd = &cobra.Command{
 			panic("At least one of storage or metadata must be specified")
 		}
 
-		if enableStorage {
-			go storage.StartStorageProcess()
-		}
 		if enableMetadata {
-			go metadata.StartMetadataProcess()
+			ready := make(chan int)
+			go metadata.StartMetadataProcess(ready)
+			<-ready
+			log.Println("Ready to accept connections on metadata server")
+		}
+		if enableStorage {
+			ready := make(chan int)
+			go storage.StartStorageProcess(ready)
+			<-ready
+			log.Println("Ready to accept connections on storage server")
 		}
 
 		select {}
