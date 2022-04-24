@@ -7,7 +7,7 @@ use std::{
 
 use crate::util::chunked_reader::ChunkedReader;
 
-use super::{metadata::MetadataClient, storage::StorageClient, Error, File, response::ErrorCode};
+use super::{metadata::MetadataClient, response::ErrorCode, storage::StorageClient, Error, File};
 
 const CHUNK_SIZE: usize = 8 * 1024 * 1024;
 
@@ -50,10 +50,10 @@ impl FileSystem {
                 // TODO: race condition is possible, retry once?
                 match self.metadata.create_file(path) {
                     Ok(create) => Ok(File::new(create.path, self.clone())),
-                    Err(e) => Result::Err(e)
+                    Err(e) => Result::Err(e),
                 }
-            },
-            Err(e) => Result::Err(e)
+            }
+            Err(e) => Result::Err(e),
         }
     }
 
@@ -85,7 +85,7 @@ impl FileSystem {
             id += 1;
         }
 
-        Result::Ok(2)
+        Ok(2)
     }
 
     // fn copy_local_to_remote(&self, source_path: &str, dest_path: &str) -> io::Result<i32> {

@@ -1,4 +1,4 @@
-use reqwest::blocking::{Client, Body};
+use reqwest::blocking::Client;
 use serde::Deserialize;
 
 use super::Error;
@@ -14,7 +14,11 @@ impl StorageClient {
         StorageClient { address, client }
     }
 
-    pub fn upload_chunk(&self, chunk_id: String, body: &[u8]) -> Result<UploadChunkResponse, Error> {
+    pub fn upload_chunk(
+        &self,
+        chunk_id: String,
+        body: &[u8],
+    ) -> Result<UploadChunkResponse, Error> {
         let resp = self
             .client
             .post(format!("{}/chunks/{}", self.address, chunk_id))

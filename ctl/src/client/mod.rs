@@ -46,16 +46,16 @@ impl Write for File {
                 // TODO: use real address here
                 let storage = self.fs.connect_to_storage("http://localhost:8080");
                 match storage.upload_chunk(append.chunk_id, buf) {
-                    Ok(value) => io::Result::Ok(value.received),
-                    Err(_) => io::Result::Err(io::Error::new(io::ErrorKind::Other, "upload failed")),
+                    Ok(value) => Ok(value.received),
+                    Err(_) => Err(io::Error::new(io::ErrorKind::Other, "upload failed")),
                 }
             }
-            Err(_) => io::Result::Err(io::Error::new(io::ErrorKind::Other, "append failed")),
+            Err(_) => Err(io::Error::new(io::ErrorKind::Other, "append failed")),
         }
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        io::Result::Ok(())
+        Ok(())
     }
 }
 
