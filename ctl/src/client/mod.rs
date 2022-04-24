@@ -1,14 +1,11 @@
-use std::{io::{Read, Seek, Write, Cursor, self}, thread::{self, JoinHandle}};
+use std::io::{self, Cursor, Read, Seek, Write};
 
-use reqwest::blocking::Body;
-
-use self::{fs::FileSystem, response::ErrorData};
+use self::{fs::FileSystem, response::ErrorData, storage::StorageClient};
 
 pub mod fs;
 mod metadata;
 mod response;
 mod storage;
-
 
 const CHUNK_SIZE: usize = 8 * 1024 * 1024;
 
@@ -20,11 +17,7 @@ pub struct File {
 
 impl File {
     fn new(path: String, fs: FileSystem) -> File {
-        File {
-            path,
-
-            fs,
-        }
+        File { path, fs }
     }
 }
 
@@ -46,14 +39,18 @@ impl Write for File {
     // Could potentially offer an unbuffered version which calls append every time.
     // Chunks are flushed and committed when flush is called.
 
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        // let resp = client
-        //     .post(format!("http://localhost:8080/chunks/{}", chunk_name))
-        //     .body(body)
-        //     .send()
-        //     .unwrap();
-
-        todo!()
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let append_resp = self.fs.metadata.append_chunk(&self.path);
+        match append_resp {
+            Ok(append) => {
+                let storage = self.fs.connect_to_storage("http://localhost:8080");
+                match storage.upload_chunk(append.chunk_id, buf) {
+                    Ok(value) => io::Result::Ok(value.received),
+                    Err(_) => io::Result::Err(io::Error::new(io::ErrorKind::Other, "upload failed")),
+                }
+            }
+            Err(_) => io::Result::Err(io::Error::new(io::ErrorKind::Other, "append failed")),
+        }
     }
 
     fn flush(&mut self) -> io::Result<()> {

@@ -7,7 +7,7 @@ use std::{
 
 use crate::util::chunked_reader::ChunkedReader;
 
-use super::{metadata::MetadataClient, Error, File};
+use super::{metadata::MetadataClient, storage::StorageClient, Error, File};
 
 const CHUNK_SIZE: usize = 8 * 1024 * 1024;
 
@@ -34,6 +34,11 @@ impl FileSystem {
             cluster_mapping,
             client,
         })
+    }
+
+    pub fn connect_to_storage(&self, address: &str) -> StorageClient {
+        // TODO: assert version
+        StorageClient::new(String::from(address), self.client.clone())
     }
 
     // TODO: stat

@@ -1,5 +1,5 @@
 use reqwest::blocking::{Body, Client};
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use std::{collections::HashMap, io};
 
@@ -19,16 +19,6 @@ impl MetadataClient {
         }
     }
 
-    // TODO: move to util
-    fn parse_response<T: DeserializeOwned>(resp: reqwest::blocking::Response) -> Result<T, Error> {
-        let parsed: Response<T> =
-            serde_json::from_reader(resp).map_err(|_| Error::ResponseError)?;
-        match parsed {
-            Response::Success(value) => Ok(value),
-            Response::Error(e) => Err(Error::ServerError(e)),
-        }
-    }
-
     // Cluster operations
 
     pub fn get_cluster_mapping(&self) -> Result<GetClusterMappingResponse, Error> {
@@ -37,7 +27,7 @@ impl MetadataClient {
             .get(format!("{}/nodes", self.address))
             .send()
             .map_err(|_| Error::NetworkError)?;
-        MetadataClient::parse_response::<GetClusterMappingResponse>(resp)
+        super::response::parse_from_response::<GetClusterMappingResponse>(resp)
     }
 
     // Namespace operations
@@ -48,7 +38,7 @@ impl MetadataClient {
             .get(format!("{}/files/{}", self.address, path))
             .send()
             .map_err(|_| Error::NetworkError)?;
-        MetadataClient::parse_response::<FileResponse>(resp)
+        super::response::parse_from_response::<FileResponse>(resp)
     }
 
     pub fn create_file(&self, path: &str) -> Result<FileResponse, Error> {
@@ -57,16 +47,16 @@ impl MetadataClient {
             .post(format!("{}/files/{}", self.address, path))
             .send()
             .map_err(|_| Error::NetworkError)?;
-        MetadataClient::parse_response::<FileResponse>(resp)
+        super::response::parse_from_response::<FileResponse>(resp)
     }
 
-    fn append_chunk(&self, path: &str) -> Result<AppendChunkResponse, Error> {
+    pub fn append_chunk(&self, path: &str) -> Result<AppendChunkResponse, Error> {
         let resp = self
             .client
-            .post(format!("{}/files/{}", self.address, path))
+            .post(format!("{}/files/{}/chunks", self.address, path))
             .send()
             .map_err(|_| Error::NetworkError)?;
-        MetadataClient::parse_response::<AppendChunkResponse>(resp)
+        super::response::parse_from_response::<AppendChunkResponse>(resp)
     }
 
     pub fn version(&self) -> Result<VersionResponse, Error> {
@@ -76,7 +66,7 @@ impl MetadataClient {
             .get(format!("{}/version", self.address))
             .send()
             .map_err(|_| Error::NetworkError)?;
-        MetadataClient::parse_response::<VersionResponse>(resp)
+        super::response::parse_from_response::<VersionResponse>(resp)
     }
 }
 

@@ -4,7 +4,7 @@ mod util;
 
 use crc32fast::Hasher;
 use reqwest::blocking::{Body, Client};
-use std::{io::{self, Read, Cursor, Write}};
+use std::io::{self, Cursor, Read, Write};
 
 const BUFFER_SIZE: usize = 256;
 const CHUNK_SIZE: usize = 8 * 1024 * 1024;
@@ -20,7 +20,7 @@ fn upload_chunk() {
     println!("{}", resp.text().unwrap());
 }
 
-fn main3() {
+fn main() {
     // upload_chunk();
     // upload_stream();
 
@@ -32,15 +32,22 @@ fn main3() {
     let new_file = fs.metadata.create_file("helloworld.txt").unwrap();
     println!("{:?}", new_file);
 
-    let mapping = fs.metadata.get_cluster_mapping().unwrap();
-    println!("{:?}", mapping);
+    let mut file = fs.open("helloworld.txt").unwrap();
 
-    let file = fs.open("helloworld.txt").unwrap();
-    println!("{}", file.path);
+    let buf = vec![1, 2, 3, 4, 5];
+    let bytes = file.write(&buf).unwrap();
+
+
+    println!("wrote {} bytes", bytes);
+
+    // let mapping = fs.metadata.get_cluster_mapping().unwrap();
+    // println!("{:?}", mapping);
+
+    // let file = fs.open("helloworld.txt").unwrap();
+    // println!("{}", file.path);
 }
 
-fn main() {
-
+fn main3() {
     let mut buffer = [0; BUFFER_SIZE];
     let wb = vec![1, 2, 3, 4, 5];
 

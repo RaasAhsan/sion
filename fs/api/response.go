@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -37,6 +38,9 @@ func HttpSuccess(w http.ResponseWriter, body interface{}, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	w.Write(bytes)
+
+	// TODO: debug
+	fmt.Printf("%s\n", string(bytes))
 }
 
 func HttpError(w http.ResponseWriter, message string, code ErrorCode, statusCode int) {
@@ -51,4 +55,7 @@ func HttpError(w http.ResponseWriter, message string, code ErrorCode, statusCode
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	w.Write(bytes)
+
+	// TODO: debug
+	fmt.Printf("%s\n", string(bytes))
 }
