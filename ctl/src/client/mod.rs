@@ -49,7 +49,6 @@ impl Seek for &File {
 
 #[derive(Debug)]
 pub enum Error {
-    FileNotFound,
     NetworkError,
     ResponseError,
     ServerError(ErrorData),

@@ -1,4 +1,4 @@
-package fs
+package api
 
 import (
 	"encoding/json"
@@ -18,6 +18,8 @@ type Error struct {
 type ErrorCode string
 
 const FileNotFound ErrorCode = "FileNotFound"
+const ChunkNotFound ErrorCode = "ChunkNotFound"
+const Unknown ErrorCode = "Unknown"
 
 func HttpOk(w http.ResponseWriter, body interface{}) {
 	HttpSuccess(w, body, http.StatusOK)

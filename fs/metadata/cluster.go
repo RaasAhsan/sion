@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/RaasAhsan/sion/fs"
+	"github.com/RaasAhsan/sion/fs/api"
 	"github.com/google/uuid"
 )
 
@@ -195,5 +196,5 @@ func (h *MetadataHandler) GetNodeAddresses(w http.ResponseWriter, r *http.Reques
 
 	resp := response{Addresses: addresses}
 
-	fs.HttpOk(w, resp)
+	api.HttpOk(w, resp)
 }

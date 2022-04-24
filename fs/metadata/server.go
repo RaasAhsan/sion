@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/RaasAhsan/sion/fs"
+	"github.com/RaasAhsan/sion/fs/api"
 	"github.com/gorilla/mux"
 )
 
@@ -30,13 +31,13 @@ func (h *MetadataHandler) GetFile(w http.ResponseWriter, r *http.Request) {
 	defer h.Namespace.Unlock()
 
 	if !h.Namespace.FileExists(path) {
-		fs.HttpError(w, "The specified file does not exist.", fs.FileNotFound, http.StatusNotFound)
+		api.HttpError(w, "The specified file does not exist.", api.FileNotFound, http.StatusNotFound)
 		return
 	}
 
 	file := h.Namespace.GetFile(path)
 
-	fs.HttpOk(w, file)
+	api.HttpOk(w, file)
 }
 
 // // TODO: just inline this to CreateFile?
@@ -60,14 +61,14 @@ func (h *MetadataHandler) CreateFile(w http.ResponseWriter, r *http.Request) {
 	defer h.Namespace.Unlock()
 
 	if h.Namespace.FileExists(path) {
-		fs.HttpError(w, "The specified file does not exist.", fs.FileNotFound, http.StatusNotFound)
+		api.HttpError(w, "The specified file does not exist.", api.FileNotFound, http.StatusNotFound)
 		return
 	}
 
 	file := NewFile(path)
 	h.Namespace.AddFile(file)
 
-	fs.HttpOk(w, file)
+	api.HttpOk(w, file)
 }
 
 func (h *MetadataHandler) AppendChunk(w http.ResponseWriter, r *http.Request) {
@@ -133,7 +134,7 @@ func (h *MetadataHandler) GetChunks(w http.ResponseWriter, r *http.Request) {
 		chunks = append(chunks, chunkLocation{Id: chunk.id, Nodes: placements})
 	}
 
-	fs.HttpOk(w, chunks)
+	api.HttpOk(w, chunks)
 }
 
 func Version(w http.ResponseWriter, r *http.Request) {
@@ -156,7 +157,7 @@ func Version(w http.ResponseWriter, r *http.Request) {
 		PatchVersion:  patchVersion,
 	}
 
-	fs.HttpOk(w, body)
+	api.HttpOk(w, body)
 }
 
 func server() {
