@@ -61,7 +61,7 @@ func (h *MetadataHandler) CreateFile(w http.ResponseWriter, r *http.Request) {
 	defer h.Namespace.Unlock()
 
 	if h.Namespace.FileExists(path) {
-		api.HttpError(w, "The specified file does not exist.", api.FileNotFound, http.StatusNotFound)
+		api.HttpError(w, "The specified file exists already.", api.FileNotFound, http.StatusNotFound)
 		return
 	}
 
@@ -94,14 +94,14 @@ func (h *MetadataHandler) AppendChunk(w http.ResponseWriter, r *http.Request) {
 		return h.Placement.PlaceChunk(chunk.id)
 	}()
 
-	address := func() fs.NodeAddress {
-		h.Cluster.Lock()
-		defer h.Cluster.Unlock()
-		// TODO: handle errors
-		return h.Cluster.GetNode(nodeId).Address
-	}()
+	type response struct {
+		ChunkId fs.ChunkId
+		NodeId  fs.NodeId
+	}
 
-	w.Write([]byte(string(address)))
+	resp := response{ChunkId: chunk.id, NodeId: nodeId}
+
+	api.HttpOk(w, resp)
 }
 
 func (h *MetadataHandler) GetChunks(w http.ResponseWriter, r *http.Request) {
