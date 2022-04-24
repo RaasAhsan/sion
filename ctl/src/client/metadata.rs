@@ -1,13 +1,11 @@
-use reqwest::{
-    blocking::{Body, Client},
-    StatusCode,
-};
+use reqwest::blocking::{Body, Client};
 use serde::{Deserialize, Serialize};
 
 use std::{collections::HashMap, io};
 
 use super::{response::Response, Error};
 
+#[derive(Clone)]
 pub struct MetadataClient {
     address: String,
     client: Client,

@@ -11,7 +11,7 @@ use super::{metadata::MetadataClient, Error, File};
 
 const CHUNK_SIZE: usize = 8 * 1024 * 1024;
 
-// TODO: what is the interface we would like to expose here?
+#[derive(Clone)]
 pub struct FileSystem {
     pub metadata: MetadataClient,
     pub cluster_mapping: ClusterMapping,
@@ -20,21 +20,27 @@ pub struct FileSystem {
 
 impl FileSystem {
     // TODO: check version and fail if incompatible
-    pub fn connect(address: &str) -> FileSystem {
+    pub fn connect(address: &str) -> Result<FileSystem, Error> {
         let client = Client::new();
         let metadata = MetadataClient::new(address, client.clone());
-        FileSystem {
+
+        let mapping_resp = metadata.get_cluster_mapping()?;
+        let cluster_mapping = ClusterMapping {
+            mapping: mapping_resp.addresses,
+        };
+
+        Ok(FileSystem {
             metadata,
-            cluster_mapping: ClusterMapping {
-                mapping: HashMap::new(),
-            },
+            cluster_mapping,
             client,
-        }
+        })
     }
+
+    // TODO: stat
 
     pub fn open(&self, path: &str) -> Result<File, Error> {
         let get_file = self.metadata.get_file(path)?;
-        let file = File::new(get_file.path, get_file.size);
+        let file = File::new(get_file.path, self.clone());
         Ok(file)
     }
 
@@ -97,6 +103,7 @@ impl FileSystem {
     // }
 }
 
+#[derive(Clone)]
 pub struct ClusterMapping {
     pub mapping: HashMap<String, String>,
 }

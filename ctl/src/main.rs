@@ -4,7 +4,7 @@ mod util;
 
 use crc32fast::Hasher;
 use reqwest::blocking::{Body, Client};
-use std::io::{self, Read};
+use std::{io::{self, Read, Cursor, Write}};
 
 const BUFFER_SIZE: usize = 256;
 const CHUNK_SIZE: usize = 8 * 1024 * 1024;
@@ -20,11 +20,11 @@ fn upload_chunk() {
     println!("{}", resp.text().unwrap());
 }
 
-fn main() {
+fn main3() {
     // upload_chunk();
     // upload_stream();
 
-    let fs = client::fs::FileSystem::connect("http://localhost:8000");
+    let fs = client::fs::FileSystem::connect("http://localhost:8000").unwrap();
 
     let version = fs.metadata.version().unwrap();
     println!("{:?}", version);
@@ -37,6 +37,19 @@ fn main() {
 
     let file = fs.open("helloworld.txt").unwrap();
     println!("{}", file.path);
+}
+
+fn main() {
+
+    let mut buffer = [0; BUFFER_SIZE];
+    let wb = vec![1, 2, 3, 4, 5];
+
+    let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+    let wr = cursor.write_all(&wb).unwrap();
+    cursor.set_position(0);
+    let result = cursor.read(&mut buffer).unwrap();
+
+    println!("{}", result);
 }
 
 fn main2() {
