@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use std::{collections::HashMap, io};
 
-use super::Error;
+use super::{response::Response, Error};
 
 pub struct MetadataClient {
     address: String,
@@ -23,19 +23,18 @@ impl MetadataClient {
 
     // Cluster operations
 
-    pub fn get_cluster_mapping(&self) -> Result<GetClusterMappingResponse, ()> {
+    pub fn get_cluster_mapping(&self) -> Result<GetClusterMappingResponse, Error> {
         let resp = self
             .client
             .get(format!("{}/nodes", self.address))
             .send()
-            .map_err(|_| ())?;
+            .map_err(|_| Error::NetworkError)?;
 
-        match resp.status() {
-            StatusCode::OK => {
-                let get_mapping: GetClusterMappingResponse = serde_json::from_reader(resp).map_err(|_| ())?;
-                Ok(get_mapping)
-            }
-            _ => Result::Err(()),
+        let parsed: Response<GetClusterMappingResponse> =
+            serde_json::from_reader(resp).map_err(|_| Error::ResponseError)?;
+        match parsed {
+            Response::Success(get_mapping) => Ok(get_mapping),
+            Response::Error(e) => Err(Error::ServerError(e)),
         }
     }
 
@@ -48,29 +47,26 @@ impl MetadataClient {
             .send()
             .map_err(|_| Error::NetworkError)?;
 
-        match resp.status() {
-            StatusCode::OK => {
-                let get_file: FileResponse = serde_json::from_reader(resp).map_err(|_| Error::ResponseError)?;
-                Ok(get_file)
-            },
-            StatusCode::NOT_FOUND => Err(Error::FileNotFound),
-            _ => Err(Error::Unknown),
+        let parsed: Response<FileResponse> =
+            serde_json::from_reader(resp).map_err(|_| Error::ResponseError)?;
+        match parsed {
+            Response::Success(get_file) => Ok(get_file),
+            Response::Error(e) => Err(Error::ServerError(e)),
         }
     }
 
-    pub fn create_file(&self, path: &str) -> Result<FileResponse, ()> {
+    pub fn create_file(&self, path: &str) -> Result<FileResponse, Error> {
         let resp = self
             .client
             .post(format!("{}/files/{}", self.address, path))
             .send()
-            .map_err(|_| ())?;
+            .map_err(|_| Error::NetworkError)?;
 
-        match resp.status() {
-            StatusCode::OK => {
-                let get_file: FileResponse = serde_json::from_reader(resp).map_err(|_| ())?;
-                Ok(get_file)
-            }
-            _ => Result::Err(()),
+        let parsed: Response<FileResponse> =
+            serde_json::from_reader(resp).map_err(|_| Error::ResponseError)?;
+        match parsed {
+            Response::Success(create_file) => Ok(create_file),
+            Response::Error(e) => Err(Error::ServerError(e)),
         }
     }
 
@@ -78,20 +74,19 @@ impl MetadataClient {
         todo!()
     }
 
-    pub fn version(&self) -> Result<VersionResponse, ()> {
+    pub fn version(&self) -> Result<VersionResponse, Error> {
         // let body = Body::new(io::stdin());
         let resp = self
             .client
             .get(format!("{}/version", self.address))
             .send()
-            .map_err(|_| ())?;
+            .map_err(|_| Error::NetworkError)?;
 
-        match resp.status() {
-            StatusCode::OK => {
-                let version: VersionResponse = serde_json::from_reader(resp).map_err(|_| ())?;
-                Ok(version)
-            }
-            _ => Result::Err(()),
+        let parsed: Response<VersionResponse> =
+            serde_json::from_reader(resp).map_err(|e| Error::ResponseError)?;
+        match parsed {
+            Response::Success(version) => Ok(version),
+            Response::Error(e) => Err(Error::ServerError(e)),
         }
     }
 }
@@ -99,7 +94,7 @@ impl MetadataClient {
 #[derive(Deserialize, Debug)]
 pub struct GetClusterMappingResponse {
     #[serde(rename(deserialize = "Addresses"))]
-    pub addresses: HashMap<String, String>
+    pub addresses: HashMap<String, String>,
 }
 
 #[derive(Deserialize, Debug)]

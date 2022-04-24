@@ -1,7 +1,6 @@
 package metadata
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -31,20 +30,13 @@ func (h *MetadataHandler) GetFile(w http.ResponseWriter, r *http.Request) {
 	defer h.Namespace.Unlock()
 
 	if !h.Namespace.FileExists(path) {
-		http.Error(w, "File does not exist", http.StatusNotFound)
+		fs.HttpError(w, "The specified file does not exist.", fs.FileNotFound, http.StatusNotFound)
 		return
 	}
 
 	file := h.Namespace.GetFile(path)
 
-	json, err := json.MarshalIndent(file, "", "  ")
-	if err != nil {
-		http.Error(w, "Failed to return response", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Add("Content-Type", "application/json")
-	w.Write(json)
+	fs.HttpOk(w, file)
 }
 
 // // TODO: just inline this to CreateFile?
@@ -68,22 +60,14 @@ func (h *MetadataHandler) CreateFile(w http.ResponseWriter, r *http.Request) {
 	defer h.Namespace.Unlock()
 
 	if h.Namespace.FileExists(path) {
-		http.Error(w, "File already exists", http.StatusBadRequest)
+		fs.HttpError(w, "The specified file does not exist.", fs.FileNotFound, http.StatusNotFound)
 		return
 	}
 
 	file := NewFile(path)
 	h.Namespace.AddFile(file)
 
-	// TODO: Separate API response type
-	json, err := json.MarshalIndent(file, "", "  ")
-	if err != nil {
-		http.Error(w, "Failed to return response", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Add("Content-Type", "application/json")
-	w.Write(json)
+	fs.HttpOk(w, file)
 }
 
 func (h *MetadataHandler) AppendChunk(w http.ResponseWriter, r *http.Request) {
@@ -149,14 +133,7 @@ func (h *MetadataHandler) GetChunks(w http.ResponseWriter, r *http.Request) {
 		chunks = append(chunks, chunkLocation{Id: chunk.id, Nodes: placements})
 	}
 
-	jsonBytes, err := json.MarshalIndent(chunks, "", "  ")
-	if err != nil {
-		http.Error(w, "Failed to return response", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Add("Content-Type", "application/json")
-	w.Write(jsonBytes)
+	fs.HttpOk(w, chunks)
 }
 
 func Version(w http.ResponseWriter, r *http.Request) {
@@ -179,14 +156,7 @@ func Version(w http.ResponseWriter, r *http.Request) {
 		PatchVersion:  patchVersion,
 	}
 
-	jsonBytes, err := json.MarshalIndent(body, "", "  ")
-	if err != nil {
-		http.Error(w, "Failed to return response", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Add("Content-Type", "application/json")
-	w.Write(jsonBytes)
+	fs.HttpOk(w, body)
 }
 
 func server() {

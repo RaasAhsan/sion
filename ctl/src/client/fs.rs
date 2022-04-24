@@ -7,7 +7,7 @@ use std::{
 
 use crate::util::chunked_reader::ChunkedReader;
 
-use super::{metadata::MetadataClient, File, Error};
+use super::{metadata::MetadataClient, Error, File};
 
 const CHUNK_SIZE: usize = 8 * 1024 * 1024;
 

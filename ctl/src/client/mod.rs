@@ -1,7 +1,10 @@
 use std::io::{Read, Seek};
 
+use self::response::ErrorData;
+
 pub mod fs;
 mod metadata;
+mod response;
 mod storage;
 
 pub struct File {
@@ -49,5 +52,6 @@ pub enum Error {
     FileNotFound,
     NetworkError,
     ResponseError,
-    Unknown
+    ServerError(ErrorData),
+    Unknown,
 }

@@ -195,12 +195,5 @@ func (h *MetadataHandler) GetNodeAddresses(w http.ResponseWriter, r *http.Reques
 
 	resp := response{Addresses: addresses}
 
-	jsonBytes, err := json.MarshalIndent(resp, "", "  ")
-	if err != nil {
-		http.Error(w, "Failed to return response", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Add("Content-Type", "application/json")
-	w.Write(jsonBytes)
+	fs.HttpOk(w, resp)
 }

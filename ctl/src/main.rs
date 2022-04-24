@@ -28,7 +28,7 @@ fn main() {
 
     let version = fs.metadata.version().unwrap();
     println!("{:?}", version);
-    
+
     let new_file = fs.metadata.create_file("helloworld.txt").unwrap();
     println!("{:?}", new_file);
 
