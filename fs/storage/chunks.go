@@ -75,7 +75,8 @@ func (h *StorageHandler) UploadChunk(w http.ResponseWriter, r *http.Request) {
 	crc := crc32.NewIEEE()
 
 	reader := http.MaxBytesReader(w, r.Body, fs.ChunkSize)
-	// TODO: potentially we want to write to a buffer then flush it. check syscalls
+	// Use a buffered writer to minimize number of write syscalls
+	// since data may be coming in slowly
 	bufferedWriter := bufio.NewWriter(f)
 	writer := io.MultiWriter(crc, bufferedWriter)
 

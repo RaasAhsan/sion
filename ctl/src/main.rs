@@ -25,8 +25,15 @@ fn main() {
     // upload_stream();
 
     let fs = client::fs::FileSystem::connect("http://localhost:8000");
+
     let version = fs.metadata.version().unwrap();
     println!("{:?}", version);
+    
+    let new_file = fs.metadata.create_file("helloworld.txt").unwrap();
+    println!("{:?}", new_file);
+
+    let mapping = fs.metadata.get_cluster_mapping().unwrap();
+    println!("{:?}", mapping);
 
     let file = fs.open("helloworld.txt").unwrap();
     println!("{}", file.path);

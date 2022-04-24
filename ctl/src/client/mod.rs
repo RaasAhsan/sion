@@ -7,12 +7,16 @@ mod storage;
 pub struct File {
     pub path: String,
     pub size: u64,
-    pub offset: u64
+    pub offset: u64,
 }
 
 impl File {
     fn new(path: String, size: u64) -> File {
-        File { path, size, offset: 0 }
+        File {
+            path,
+            size,
+            offset: 0,
+        }
     }
 }
 
@@ -38,4 +42,12 @@ impl Seek for &File {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
         todo!()
     }
+}
+
+#[derive(Debug)]
+pub enum Error {
+    FileNotFound,
+    NetworkError,
+    ResponseError,
+    Unknown
 }

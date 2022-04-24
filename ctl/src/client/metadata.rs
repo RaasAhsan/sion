@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use std::{collections::HashMap, io};
 
+use super::Error;
+
 pub struct MetadataClient {
     address: String,
     client: Client,
@@ -21,30 +23,55 @@ impl MetadataClient {
 
     // Cluster operations
 
-    fn get_cluster_mapping(&self) -> io::Result<HashMap<String, String>> {
-        todo!()
-    }
-
-    // Namespace operations
-
-    pub fn get_file(&self, path: &str) -> Result<GetFileResponse, ()> {
+    pub fn get_cluster_mapping(&self) -> Result<GetClusterMappingResponse, ()> {
         let resp = self
             .client
-            .get(format!("{}/files/{}", self.address, path))
+            .get(format!("{}/nodes", self.address))
             .send()
             .map_err(|_| ())?;
 
         match resp.status() {
             StatusCode::OK => {
-                let get_file: GetFileResponse = serde_json::from_reader(resp).map_err(|_| ())?;
-                Ok(get_file)
+                let get_mapping: GetClusterMappingResponse = serde_json::from_reader(resp).map_err(|_| ())?;
+                Ok(get_mapping)
             }
             _ => Result::Err(()),
         }
     }
 
-    fn create_file(&self, path: &str) -> io::Result<u32> {
-        todo!()
+    // Namespace operations
+
+    pub fn get_file(&self, path: &str) -> Result<FileResponse, Error> {
+        let resp = self
+            .client
+            .get(format!("{}/files/{}", self.address, path))
+            .send()
+            .map_err(|_| Error::NetworkError)?;
+
+        match resp.status() {
+            StatusCode::OK => {
+                let get_file: FileResponse = serde_json::from_reader(resp).map_err(|_| Error::ResponseError)?;
+                Ok(get_file)
+            },
+            StatusCode::NOT_FOUND => Err(Error::FileNotFound),
+            _ => Err(Error::Unknown),
+        }
+    }
+
+    pub fn create_file(&self, path: &str) -> Result<FileResponse, ()> {
+        let resp = self
+            .client
+            .post(format!("{}/files/{}", self.address, path))
+            .send()
+            .map_err(|_| ())?;
+
+        match resp.status() {
+            StatusCode::OK => {
+                let get_file: FileResponse = serde_json::from_reader(resp).map_err(|_| ())?;
+                Ok(get_file)
+            }
+            _ => Result::Err(()),
+        }
     }
 
     fn append_chunk(&self, path: &str) -> io::Result<String> {
@@ -69,13 +96,14 @@ impl MetadataClient {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct GetClusterMappingResponse {
-
+    #[serde(rename(deserialize = "Addresses"))]
+    pub addresses: HashMap<String, String>
 }
 
-#[derive(Deserialize)]
-pub struct GetFileResponse {
+#[derive(Deserialize, Debug)]
+pub struct FileResponse {
     #[serde(rename(deserialize = "Path"))]
     pub path: String,
     #[serde(rename(deserialize = "TimeCreated"))]

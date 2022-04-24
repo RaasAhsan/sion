@@ -1,18 +1,20 @@
 use reqwest::blocking::{Body, Client};
 use std::{
+    collections::HashMap,
     io,
     sync::{Arc, Mutex},
 };
 
 use crate::util::chunked_reader::ChunkedReader;
 
-use super::{metadata::MetadataClient, File};
+use super::{metadata::MetadataClient, File, Error};
 
 const CHUNK_SIZE: usize = 8 * 1024 * 1024;
 
 // TODO: what is the interface we would like to expose here?
 pub struct FileSystem {
     pub metadata: MetadataClient,
+    pub cluster_mapping: ClusterMapping,
     client: Client,
 }
 
@@ -21,10 +23,16 @@ impl FileSystem {
     pub fn connect(address: &str) -> FileSystem {
         let client = Client::new();
         let metadata = MetadataClient::new(address, client.clone());
-        FileSystem { metadata, client }
+        FileSystem {
+            metadata,
+            cluster_mapping: ClusterMapping {
+                mapping: HashMap::new(),
+            },
+            client,
+        }
     }
 
-    pub fn open(&self, path: &str) -> Result<File, ()> {
+    pub fn open(&self, path: &str) -> Result<File, Error> {
         let get_file = self.metadata.get_file(path)?;
         let file = File::new(get_file.path, get_file.size);
         Ok(file)
@@ -87,4 +95,8 @@ impl FileSystem {
 
     //     Result::Ok(2)
     // }
+}
+
+pub struct ClusterMapping {
+    pub mapping: HashMap<String, String>,
 }

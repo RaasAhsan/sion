@@ -181,6 +181,10 @@ func (h *MetadataHandler) Heartbeat(w http.ResponseWriter, r *http.Request) {
 func (h *MetadataHandler) GetNodeAddresses(w http.ResponseWriter, r *http.Request) {
 	addresses := make(map[fs.NodeId]fs.NodeAddress)
 
+	type response struct {
+		Addresses map[fs.NodeId]fs.NodeAddress
+	}
+
 	h.Cluster.Lock()
 	defer h.Cluster.Unlock()
 
@@ -189,7 +193,9 @@ func (h *MetadataHandler) GetNodeAddresses(w http.ResponseWriter, r *http.Reques
 		addresses[node.Id] = node.Address
 	}
 
-	jsonBytes, err := json.MarshalIndent(addresses, "", "  ")
+	resp := response{Addresses: addresses}
+
+	jsonBytes, err := json.MarshalIndent(resp, "", "  ")
 	if err != nil {
 		http.Error(w, "Failed to return response", http.StatusInternalServerError)
 		return
