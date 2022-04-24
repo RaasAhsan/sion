@@ -1,5 +1,5 @@
 use reqwest::blocking::{Body, Client};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use std::{collections::HashMap, io};
 
@@ -19,6 +19,16 @@ impl MetadataClient {
         }
     }
 
+    // TODO: move to util
+    fn parse_response<T: DeserializeOwned>(resp: reqwest::blocking::Response) -> Result<T, Error> {
+        let parsed: Response<T> =
+            serde_json::from_reader(resp).map_err(|_| Error::ResponseError)?;
+        match parsed {
+            Response::Success(value) => Ok(value),
+            Response::Error(e) => Err(Error::ServerError(e)),
+        }
+    }
+
     // Cluster operations
 
     pub fn get_cluster_mapping(&self) -> Result<GetClusterMappingResponse, Error> {
@@ -27,13 +37,7 @@ impl MetadataClient {
             .get(format!("{}/nodes", self.address))
             .send()
             .map_err(|_| Error::NetworkError)?;
-
-        let parsed: Response<GetClusterMappingResponse> =
-            serde_json::from_reader(resp).map_err(|_| Error::ResponseError)?;
-        match parsed {
-            Response::Success(get_mapping) => Ok(get_mapping),
-            Response::Error(e) => Err(Error::ServerError(e)),
-        }
+        MetadataClient::parse_response::<GetClusterMappingResponse>(resp)
     }
 
     // Namespace operations
@@ -44,13 +48,7 @@ impl MetadataClient {
             .get(format!("{}/files/{}", self.address, path))
             .send()
             .map_err(|_| Error::NetworkError)?;
-
-        let parsed: Response<FileResponse> =
-            serde_json::from_reader(resp).map_err(|_| Error::ResponseError)?;
-        match parsed {
-            Response::Success(get_file) => Ok(get_file),
-            Response::Error(e) => Err(Error::ServerError(e)),
-        }
+        MetadataClient::parse_response::<FileResponse>(resp)
     }
 
     pub fn create_file(&self, path: &str) -> Result<FileResponse, Error> {
@@ -59,17 +57,16 @@ impl MetadataClient {
             .post(format!("{}/files/{}", self.address, path))
             .send()
             .map_err(|_| Error::NetworkError)?;
-
-        let parsed: Response<FileResponse> =
-            serde_json::from_reader(resp).map_err(|_| Error::ResponseError)?;
-        match parsed {
-            Response::Success(create_file) => Ok(create_file),
-            Response::Error(e) => Err(Error::ServerError(e)),
-        }
+        MetadataClient::parse_response::<FileResponse>(resp)
     }
 
-    fn append_chunk(&self, path: &str) -> io::Result<String> {
-        todo!()
+    fn append_chunk(&self, path: &str) -> Result<AppendChunkResponse, Error> {
+        let resp = self
+            .client
+            .post(format!("{}/files/{}", self.address, path))
+            .send()
+            .map_err(|_| Error::NetworkError)?;
+        MetadataClient::parse_response::<AppendChunkResponse>(resp)
     }
 
     pub fn version(&self) -> Result<VersionResponse, Error> {
@@ -79,13 +76,7 @@ impl MetadataClient {
             .get(format!("{}/version", self.address))
             .send()
             .map_err(|_| Error::NetworkError)?;
-
-        let parsed: Response<VersionResponse> =
-            serde_json::from_reader(resp).map_err(|e| Error::ResponseError)?;
-        match parsed {
-            Response::Success(version) => Ok(version),
-            Response::Error(e) => Err(Error::ServerError(e)),
-        }
+        MetadataClient::parse_response::<VersionResponse>(resp)
     }
 }
 
@@ -117,4 +108,12 @@ pub struct VersionResponse {
     pub minor_version: u8,
     #[serde(rename(deserialize = "PatchVersion"))]
     pub patch_version: u8,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AppendChunkResponse {
+    #[serde(rename(deserialize = "ChunkId"))]
+    pub chunk_id: String,
+    #[serde(rename(deserialize = "NodeId"))]
+    pub node_id: String,
 }
