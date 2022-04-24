@@ -16,7 +16,7 @@ pub struct ErrorData {
     pub code: ErrorCode,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, PartialEq, Eq)]
 pub enum ErrorCode {
     FileNotFound,
     ChunkNotFound,

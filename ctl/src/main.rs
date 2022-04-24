@@ -29,9 +29,6 @@ fn main() {
     let version = fs.metadata.version().unwrap();
     println!("{:?}", version);
 
-    let new_file = fs.metadata.create_file("helloworld.txt").unwrap();
-    println!("{:?}", new_file);
-
     let mut file = fs.open("helloworld.txt").unwrap();
 
     let buf = vec![1, 2, 3, 4, 5];

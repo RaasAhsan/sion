@@ -43,6 +43,7 @@ impl Write for File {
         let append_resp = self.fs.metadata.append_chunk(&self.path);
         match append_resp {
             Ok(append) => {
+                // TODO: use real address here
                 let storage = self.fs.connect_to_storage("http://localhost:8080");
                 match storage.upload_chunk(append.chunk_id, buf) {
                     Ok(value) => io::Result::Ok(value.received),
