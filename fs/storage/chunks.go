@@ -16,7 +16,7 @@ import (
 
 type NodeState struct {
 	Sequence int
-	Commands []fs.Command
+	Commands []api.Command
 	Chunks   map[fs.ChunkId]chunk
 }
 

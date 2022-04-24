@@ -137,7 +137,7 @@ func (h *MetadataHandler) Join(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req fs.RegisterRequest
+	var req api.RegisterRequest
 	err = json.Unmarshal(body, &req)
 	if err != nil {
 		http.Error(w, "Failed to parse body", http.StatusBadRequest)
@@ -160,7 +160,7 @@ func (h *MetadataHandler) Heartbeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var heartbeatReq fs.HeartbeatRequest
+	var heartbeatReq api.HeartbeatRequest
 	err = json.Unmarshal(body, &heartbeatReq)
 	if err != nil {
 		http.Error(w, "Failed to parse body", http.StatusBadRequest)

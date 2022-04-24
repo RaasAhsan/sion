@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/RaasAhsan/sion/fs"
+	"github.com/RaasAhsan/sion/fs/api"
 	"github.com/RaasAhsan/sion/fs/util"
 	"github.com/gorilla/mux"
 )
@@ -35,7 +36,7 @@ func GatherChunkInventory() {
 
 func Join(client *http.Client, baseUrl string, localUrl string) fs.NodeId {
 	log.Println("Registering node with master")
-	req := fs.RegisterRequest{
+	req := api.RegisterRequest{
 		Address: fs.NodeAddress(localUrl),
 	}
 	reqBytes, err := json.Marshal(req)
@@ -72,7 +73,7 @@ func HeartbeatLoop(client *http.Client, baseUrl string, nodeId fs.NodeId, done c
 				return
 			case <-ticker.C:
 				func() {
-					req := fs.HeartbeatRequest{NodeId: nodeId}
+					req := api.HeartbeatRequest{NodeId: nodeId}
 					reqBody, err := json.Marshal(req)
 					if err != nil {
 						log.Println("Failed to create request")
