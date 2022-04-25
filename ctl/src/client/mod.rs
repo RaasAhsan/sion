@@ -1,7 +1,14 @@
-use std::io::{self, Cursor, Read, Seek, Write};
+use std::{
+    io::{self, BufWriter, Read, Seek, Write},
+    sync::mpsc::sync_channel,
+    thread::{self, JoinHandle},
+};
 
-use self::{fs::FileSystem, response::ErrorData, storage::StorageClient};
+use reqwest::blocking::Body;
 
+use self::{buffer::TxWrite, fs::FileSystem, response::ErrorData};
+
+mod buffer;
 pub mod fs;
 mod metadata;
 mod response;
@@ -13,11 +20,21 @@ pub struct File {
     pub path: String,
 
     fs: FileSystem,
+    write_state: Option<WriteState>,
+}
+
+struct WriteState {
+    handle: JoinHandle<std::io::Result<usize>>, // TODO: return result of response
+    sender: BufWriter<TxWrite>,
 }
 
 impl File {
     fn new(path: String, fs: FileSystem) -> File {
-        File { path, fs }
+        File {
+            path,
+            fs,
+            write_state: None,
+        }
     }
 }
 
@@ -40,22 +57,60 @@ impl Write for File {
     // Chunks are flushed and committed when flush is called.
 
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let append_resp = self.fs.metadata.append_chunk(&self.path);
-        match append_resp {
-            Ok(append) => {
-                // TODO: use real address here
-                let storage = self.fs.connect_to_storage("http://localhost:8080");
-                match storage.upload_chunk(append.chunk_id, buf) {
-                    Ok(value) => Ok(value.received),
-                    Err(_) => Err(io::Error::new(io::ErrorKind::Other, "upload failed")),
+        if let Some(state) = &mut self.write_state {
+            state.sender.write(buf)
+        } else {
+            let append_resp = self.fs.metadata.append_chunk(&self.path);
+            match append_resp {
+                Ok(append) => {
+                    let (tx_writer, reader) = buffer::channel();
+                    let mut writer = BufWriter::new(tx_writer);
+
+                    let storage = self.fs.connect_to_storage("http://localhost:8080");
+
+                    let handle = thread::spawn(move || {
+                        // TODO: use real address here
+                        match storage.upload_chunk(append.chunk_id, Body::new(reader)) {
+                            Ok(value) => Ok(value.received),
+                            Err(_) => Err(io::Error::new(io::ErrorKind::Other, "upload failed")),
+                        }
+                    });
+                    let init_write = writer.write(buf);
+                    self.write_state = Some(WriteState {
+                        handle,
+                        sender: writer,
+                    });
+                    init_write
                 }
+                Err(_) => Err(io::Error::new(io::ErrorKind::Other, "append failed")),
             }
-            Err(_) => Err(io::Error::new(io::ErrorKind::Other, "append failed")),
         }
     }
 
+    // fn write_unbuffered(&mut self, buf: &[u8]) -> io::Result<usize> {
+    //     let append_resp = self.fs.metadata.append_chunk(&self.path);
+    //     match append_resp {
+    //         Ok(append) => {
+    //             // TODO: use real address here
+    //             let storage = self.fs.connect_to_storage("http://localhost:8080");
+    //             match storage.upload_chunk(append.chunk_id, buf.to_vec().into()) {
+    //                 Ok(value) => Ok(value.received),
+    //                 Err(_) => Err(io::Error::new(io::ErrorKind::Other, "upload failed")),
+    //             }
+    //         }
+    //         Err(_) => Err(io::Error::new(io::ErrorKind::Other, "append failed")),
+    //     }
+    // }
+
     fn flush(&mut self) -> io::Result<()> {
-        Ok(())
+        match self.write_state.take() {
+            Some(mut state) => {
+                let res = state.sender.flush();
+                state.handle.join().unwrap(); // TODO: incorporate this in the flush
+                res
+            }
+            None => Ok(()),
+        }
     }
 }
 

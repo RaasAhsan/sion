@@ -1,4 +1,4 @@
-use reqwest::blocking::Client;
+use reqwest::blocking::{Body, Client};
 use serde::Deserialize;
 
 use super::Error;
@@ -14,15 +14,11 @@ impl StorageClient {
         StorageClient { address, client }
     }
 
-    pub fn upload_chunk(
-        &self,
-        chunk_id: String,
-        body: &[u8],
-    ) -> Result<UploadChunkResponse, Error> {
+    pub fn upload_chunk(&self, chunk_id: String, body: Body) -> Result<UploadChunkResponse, Error> {
         let resp = self
             .client
             .post(format!("{}/chunks/{}", self.address, chunk_id))
-            .body(body.to_vec()) // TODO: is this the most efficient?
+            .body(body)
             .send()
             .map_err(|_| Error::NetworkError)?;
         super::response::parse_from_response::<UploadChunkResponse>(resp)
