@@ -1,9 +1,9 @@
-use reqwest::blocking::{Body, Client};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use reqwest::blocking::Client;
+use serde::{Deserialize, Serialize};
 
 use std::{collections::HashMap, io};
 
-use super::{response::Response, Error};
+use super::Error;
 
 #[derive(Clone)]
 pub struct MetadataClient {
@@ -22,51 +22,47 @@ impl MetadataClient {
     // Cluster operations
 
     pub fn get_cluster_mapping(&self) -> Result<GetClusterMappingResponse, Error> {
-        let resp = self
-            .client
+        self.client
             .get(format!("{}/nodes", self.address))
             .send()
-            .map_err(|_| Error::NetworkError)?;
-        super::response::parse_from_response::<GetClusterMappingResponse>(resp)
+            .map_err(|_| Error::NetworkError)
+            .and_then(|resp| super::response::parse_from_response(resp))
     }
 
     // Namespace operations
 
     pub fn get_file(&self, path: &str) -> Result<FileResponse, Error> {
-        let resp = self
-            .client
+        self.client
             .get(format!("{}/files/{}", self.address, path))
             .send()
-            .map_err(|_| Error::NetworkError)?;
-        super::response::parse_from_response::<FileResponse>(resp)
+            .map_err(|_| Error::NetworkError)
+            .and_then(|resp| super::response::parse_from_response(resp))
     }
 
     pub fn create_file(&self, path: &str) -> Result<FileResponse, Error> {
-        let resp = self
-            .client
+        self.client
             .post(format!("{}/files/{}", self.address, path))
             .send()
-            .map_err(|_| Error::NetworkError)?;
-        super::response::parse_from_response::<FileResponse>(resp)
+            .map_err(|_| Error::NetworkError)
+            .and_then(|resp| super::response::parse_from_response(resp))
     }
 
+    // TODO: append to old chunk
     pub fn append_chunk(&self, path: &str) -> Result<AppendChunkResponse, Error> {
-        let resp = self
-            .client
+        self.client
             .post(format!("{}/files/{}/chunks", self.address, path))
             .send()
-            .map_err(|_| Error::NetworkError)?;
-        super::response::parse_from_response::<AppendChunkResponse>(resp)
+            .map_err(|_| Error::NetworkError)
+            .and_then(|resp| super::response::parse_from_response(resp))
     }
 
     pub fn version(&self) -> Result<VersionResponse, Error> {
         // let body = Body::new(io::stdin());
-        let resp = self
-            .client
+        self.client
             .get(format!("{}/version", self.address))
             .send()
-            .map_err(|_| Error::NetworkError)?;
-        super::response::parse_from_response::<VersionResponse>(resp)
+            .map_err(|_| Error::NetworkError)
+            .and_then(|resp| super::response::parse_from_response(resp))
     }
 }
 
