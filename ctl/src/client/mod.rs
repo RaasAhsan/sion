@@ -1,6 +1,5 @@
 use std::{
     io::{self, BufWriter, Read, Seek, Write},
-    sync::mpsc::sync_channel,
     thread::{self, JoinHandle},
 };
 
@@ -13,8 +12,6 @@ pub mod fs;
 mod metadata;
 mod response;
 mod storage;
-
-const CHUNK_SIZE: usize = 8 * 1024 * 1024;
 
 pub struct File {
     pub path: String,

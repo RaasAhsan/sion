@@ -1,7 +1,7 @@
 use reqwest::blocking::Client;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-use std::{collections::HashMap, io};
+use std::collections::HashMap;
 
 use super::Error;
 
@@ -42,6 +42,14 @@ impl MetadataClient {
     pub fn create_file(&self, path: &str) -> Result<FileResponse, Error> {
         self.client
             .post(format!("{}/files/{}", self.address, path))
+            .send()
+            .map_err(|_| Error::NetworkError)
+            .and_then(|resp| super::response::parse_from_response(resp))
+    }
+
+    pub fn get_chunks(&self, path: &str) -> Result<Vec<GetChunkLocationResponse>, Error> {
+        self.client
+            .get(format!("{}/files/{}/chunks", self.address, path))
             .send()
             .map_err(|_| Error::NetworkError)
             .and_then(|resp| super::response::parse_from_response(resp))
@@ -102,4 +110,12 @@ pub struct AppendChunkResponse {
     pub chunk_id: String,
     #[serde(rename(deserialize = "NodeId"))]
     pub node_id: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GetChunkLocationResponse {
+    #[serde(rename(deserialize = "Id"))]
+    pub chunk_id: String,
+    #[serde(rename(deserialize = "Nodes"))]
+    pub nodes: Vec<String>,
 }
