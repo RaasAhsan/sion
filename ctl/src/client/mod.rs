@@ -1,5 +1,6 @@
 use std::{
-    io::{self, BufWriter, Read, Seek, Write},
+    io::{self, BufReader, BufWriter, Read, Seek, Write},
+    ops::Index,
     thread::{self, JoinHandle},
 };
 
@@ -17,7 +18,13 @@ pub struct File {
     pub path: String,
 
     fs: FileSystem,
+    read_state: Option<ReadState>,
     write_state: Option<WriteState>,
+}
+
+struct ReadState {
+    chunks: Vec<String>,
+    chunk_index: usize,
 }
 
 struct WriteState {
@@ -30,15 +37,60 @@ impl File {
         File {
             path,
             fs,
+            read_state: None,
             write_state: None,
+        }
+    }
+
+    // For now, assume the buffer is always large enough to read a whole chunk
+    // TODO: fix this once we have more size information
+    fn read_one_chunk(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let state = self.read_state.as_mut().unwrap();
+        if state.chunk_index >= state.chunks.len() {
+            Ok(0)
+        } else {
+            let storage = self.fs.connect_to_storage("http://localhost:8080");
+
+            // TODO: check if buffer is large enough
+            let range = (0, buf.len() - 1);
+            let mut vbuf = Vec::new();
+            match storage.download_chunk(
+                state.chunks.index(state.chunk_index),
+                &mut vbuf,
+                Some(range),
+            ) {
+                Ok(resp) => {
+                    buf[..vbuf.len()].clone_from_slice(&vbuf);
+                    state.chunk_index += 1;
+                    Ok(resp as usize)
+                }
+                Err(_) => Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "failed to download chunk",
+                )),
+            }
         }
     }
 }
 
 impl Read for File {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        // std::fs::File::open(source_path).unwrap();
-        todo!()
+        if let Some(_) = &mut self.read_state {
+            self.read_one_chunk(buf)
+        } else {
+            let chunks_resp = self.fs.metadata.get_chunks(&self.path);
+            match chunks_resp {
+                Ok(resp) => {
+                    let chunks: Vec<String> = resp.into_iter().map(|r| r.chunk_id).collect();
+                    self.read_state = Some(ReadState {
+                        chunks,
+                        chunk_index: 0,
+                    });
+                    self.read_one_chunk(buf)
+                }
+                Err(_) => Err(io::Error::new(io::ErrorKind::Other, "failed to get chunks")),
+            }
+        }
     }
 }
 
@@ -67,7 +119,7 @@ impl Write for File {
 
                     let handle = thread::spawn(move || {
                         // TODO: use real address here
-                        match storage.upload_chunk(append.chunk_id, Body::new(reader)) {
+                        match storage.upload_chunk(&append.chunk_id, Body::new(reader)) {
                             Ok(value) => Ok(value.received),
                             Err(_) => Err(io::Error::new(io::ErrorKind::Other, "upload failed")),
                         }

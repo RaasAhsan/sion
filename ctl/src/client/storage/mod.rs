@@ -1,6 +1,10 @@
 use std::io::Write;
 
-use reqwest::blocking::{Body, Client};
+use reqwest::{
+    blocking::{Body, Client},
+    header::{HeaderMap, HeaderValue, RANGE},
+    StatusCode,
+};
 use serde::Deserialize;
 
 use super::Error;
@@ -16,16 +20,34 @@ impl StorageClient {
         StorageClient { address, client }
     }
 
-    pub fn download_chunk<W: Write>(&self, chunk_id: String, writer: &mut W) -> Result<u64, Error> {
-        self
-            .client
+    pub fn download_chunk<W: Write>(
+        &self,
+        chunk_id: &str,
+        writer: &mut W,
+        range: Option<(usize, usize)>,
+    ) -> Result<u64, Error> {
+        let mut headers = HeaderMap::new();
+        if let Some((start, end)) = range {
+            headers.insert(
+                RANGE,
+                HeaderValue::from_str(&format!("bytes={}-{}", start, end)).unwrap(),
+            );
+        }
+
+        self.client
             .get(format!("{}/chunks/{}", self.address, chunk_id))
+            .headers(headers)
             .send()
             .map_err(|_| Error::NetworkError)
-            .and_then(|mut resp| resp.copy_to(writer).map_err(|_| Error::NetworkError))
+            .and_then(|mut resp| match resp.status() {
+                StatusCode::OK | StatusCode::PARTIAL_CONTENT => {
+                    resp.copy_to(writer).map_err(|_| Error::NetworkError)
+                }
+                _ => Err(Error::ResponseError),
+            })
     }
 
-    pub fn upload_chunk(&self, chunk_id: String, body: Body) -> Result<UploadChunkResponse, Error> {
+    pub fn upload_chunk(&self, chunk_id: &str, body: Body) -> Result<UploadChunkResponse, Error> {
         self.client
             .post(format!("{}/chunks/{}", self.address, chunk_id))
             .body(body)

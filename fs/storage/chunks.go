@@ -39,21 +39,23 @@ func (h *StorageHandler) DownloadChunk(w http.ResponseWriter, r *http.Request) {
 	len := fi.Size()
 
 	// Open chunk file for writing
-	in, err := os.Open(filename)
-	if err != nil {
-		api.HttpError(w, "Chunk not found", api.Unknown, http.StatusInternalServerError)
-		return
-	}
-	defer in.Close()
+	// in, err := os.Open(filename)
+	// if err != nil {
+	// 	api.HttpError(w, "Chunk not found", api.Unknown, http.StatusInternalServerError)
+	// 	return
+	// }
+	// defer in.Close()
 
-	w.Header().Add("content-length", fmt.Sprintf("%d", len))
-	bytes, err := io.Copy(w, in)
-	if err != nil {
-		log.Println(err)
-		return
-	}
+	// w.Header().Add("content-length", fmt.Sprintf("%d", len))
+	// bytes, err := io.Copy(w, in)
+	// if err != nil {
+	// 	log.Println(err)
+	// 	return
+	// }
 
-	log.Printf("Reading chunk %s, wrote %d bytes\n", chunkId, bytes)
+	http.ServeFile(w, r, filename)
+
+	log.Printf("Reading chunk %s, %d len\n", chunkId, len)
 }
 
 func (h *StorageHandler) UploadChunk(w http.ResponseWriter, r *http.Request) {
