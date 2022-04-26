@@ -1,8 +1,9 @@
 use std::io::Write;
 
+use http_content_range::ContentRange;
 use reqwest::{
     blocking::{Body, Client},
-    header::{HeaderMap, HeaderValue, RANGE},
+    header::{HeaderMap, HeaderValue, CONTENT_RANGE, RANGE},
     StatusCode,
 };
 use serde::Deserialize;
@@ -25,7 +26,7 @@ impl StorageClient {
         chunk_id: &str,
         writer: &mut W,
         range: Option<(usize, usize)>,
-    ) -> Result<u64, Error> {
+    ) -> Result<DownloadChunkResponse, Error> {
         let mut headers = HeaderMap::new();
         if let Some((start, end)) = range {
             headers.insert(
@@ -40,9 +41,20 @@ impl StorageClient {
             .send()
             .map_err(|_| Error::NetworkError)
             .and_then(|mut resp| match resp.status() {
-                StatusCode::OK | StatusCode::PARTIAL_CONTENT => {
-                    resp.copy_to(writer).map_err(|_| Error::NetworkError)
-                }
+                StatusCode::OK | StatusCode::PARTIAL_CONTENT => resp
+                    .copy_to(writer)
+                    .map(|bytes| {
+                        let content_range = if let Some(value) = resp.headers().get(CONTENT_RANGE) {
+                            Some(ContentRange::parse_bytes(value.as_bytes()))
+                        } else {
+                            None
+                        };
+                        DownloadChunkResponse {
+                            bytes: bytes as usize,
+                            content_range: content_range,
+                        }
+                    })
+                    .map_err(|_| Error::NetworkError),
                 _ => Err(Error::ResponseError),
             })
     }
@@ -63,4 +75,10 @@ pub struct UploadChunkResponse {
     pub id: String,
     #[serde(rename(deserialize = "Received"))]
     pub received: usize,
+}
+
+#[derive(Debug)]
+pub struct DownloadChunkResponse {
+    pub bytes: usize,
+    pub content_range: Option<ContentRange>,
 }

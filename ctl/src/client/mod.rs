@@ -4,6 +4,7 @@ use std::{
     thread::{self, JoinHandle},
 };
 
+use http_content_range::ContentRange;
 use reqwest::blocking::Body;
 
 use self::{buffer::TxWrite, fs::FileSystem, response::ErrorData};
@@ -25,6 +26,7 @@ pub struct File {
 struct ReadState {
     chunks: Vec<String>,
     chunk_index: usize,
+    chunk_offset: usize,
 }
 
 struct WriteState {
@@ -51,18 +53,51 @@ impl File {
         } else {
             let storage = self.fs.connect_to_storage("http://localhost:8080");
 
-            // TODO: check if buffer is large enough
-            let range = (0, buf.len() - 1);
+            let start = state.chunk_offset;
+            // It is fine if we go past the end of the file; server will tell us the true length
+            // TODO: but fix this later when we have chunk metadata locally
+            let end = start + buf.len() - 1;
             let mut vbuf = Vec::new();
             match storage.download_chunk(
                 state.chunks.index(state.chunk_index),
                 &mut vbuf,
-                Some(range),
+                Some((start, end)),
             ) {
                 Ok(resp) => {
                     buf[..vbuf.len()].clone_from_slice(&vbuf);
-                    state.chunk_index += 1;
-                    Ok(resp as usize)
+
+                    // Check chunk boundary to see if we need to request more
+                    // bytes on the current chunk, or if we can move onto the next
+                    let boundary = match resp.content_range {
+                        Some(range) => match range {
+                            ContentRange::Bytes(range) => {
+                                if range.last_byte + 1 == range.complete_length {
+                                    ChunkBoundary::Next
+                                } else {
+                                    ChunkBoundary::More((range.last_byte + 1) as usize)
+                                }
+                            }
+                            ContentRange::UnboundBytes(_) => ChunkBoundary::Next,
+                            ContentRange::Unsatisfied(_) => ChunkBoundary::Unknown,
+                            ContentRange::Unknown => ChunkBoundary::Unknown,
+                        },
+                        None => ChunkBoundary::Next,
+                    };
+
+                    match boundary {
+                        ChunkBoundary::Next => {
+                            state.chunk_index += 1;
+                            state.chunk_offset = 0;
+                            Ok(resp.bytes)
+                        }
+                        ChunkBoundary::More(offset) => {
+                            state.chunk_offset = offset;
+                            Ok(resp.bytes)
+                        }
+                        ChunkBoundary::Unknown => {
+                            Err(io::Error::new(io::ErrorKind::Other, "invalid chunk range"))
+                        }
+                    }
                 }
                 Err(_) => Err(io::Error::new(
                     io::ErrorKind::Other,
@@ -85,6 +120,7 @@ impl Read for File {
                     self.read_state = Some(ReadState {
                         chunks,
                         chunk_index: 0,
+                        chunk_offset: 0,
                     });
                     self.read_one_chunk(buf)
                 }
@@ -168,5 +204,11 @@ pub enum Error {
     NetworkError,
     ResponseError,
     ServerError(ErrorData),
+    Unknown,
+}
+
+enum ChunkBoundary {
+    Next,
+    More(usize),
     Unknown,
 }

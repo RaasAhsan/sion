@@ -12,17 +12,6 @@ use std::{
 const BUFFER_SIZE: usize = 256;
 const CHUNK_SIZE: usize = 8 * 1024 * 1024;
 
-fn upload_chunk() {
-    let client = Client::new();
-    let body = Body::new(io::stdin());
-    let resp = client
-        .post("http://localhost:8080/chunks/4")
-        .body(body)
-        .send()
-        .unwrap();
-    println!("{}", resp.text().unwrap());
-}
-
 fn main() {
     let fs = client::fs::FileSystem::connect("http://localhost:8000").unwrap();
 
@@ -59,17 +48,6 @@ fn main() {
 
     // let file = fs.open("helloworld.txt").unwrap();
     // println!("{}", file.path);
-}
-
-struct Conn {
-    stream: TcpStream,
-}
-
-fn test(conn: &mut Conn) {
-    let mut buf = vec![1, 2, 3, 4, 5];
-    let stream = &conn.stream;
-    conn.stream.write(&buf);
-    conn.stream.write(&buf);
 }
 
 fn main2() {

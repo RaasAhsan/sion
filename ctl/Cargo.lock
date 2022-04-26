@@ -223,6 +223,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "http-content-range"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f0d1a8ef218a86416107794b34cc446958d9203556c312bb41eab4c924c1d2e"
+
+[[package]]
 name = "httparse"
 version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -643,6 +649,7 @@ name = "sionctl"
 version = "0.1.0"
 dependencies = [
  "crc32fast",
+ "http-content-range",
  "reqwest",
  "serde",
  "serde_json",
