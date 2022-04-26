@@ -68,23 +68,7 @@ impl File {
 
                     // Check chunk boundary to see if we need to request more
                     // bytes on the current chunk, or if we can move onto the next
-                    let boundary = match resp.content_range {
-                        Some(range) => match range {
-                            ContentRange::Bytes(range) => {
-                                if range.last_byte + 1 == range.complete_length {
-                                    ChunkBoundary::Next
-                                } else {
-                                    ChunkBoundary::More((range.last_byte + 1) as usize)
-                                }
-                            }
-                            ContentRange::UnboundBytes(_) => ChunkBoundary::Next,
-                            ContentRange::Unsatisfied(_) => ChunkBoundary::Unknown,
-                            ContentRange::Unknown => ChunkBoundary::Unknown,
-                        },
-                        None => ChunkBoundary::Next,
-                    };
-
-                    match boundary {
+                    match chunk_boundary_from_range(&resp.content_range) {
                         ChunkBoundary::Next => {
                             state.chunk_index += 1;
                             state.chunk_offset = 0;
@@ -207,8 +191,27 @@ pub enum Error {
     Unknown,
 }
 
+#[derive(Debug)]
 enum ChunkBoundary {
     Next,
     More(usize),
     Unknown,
+}
+
+fn chunk_boundary_from_range(range: &Option<ContentRange>) -> ChunkBoundary {
+    match range {
+        Some(range) => match range {
+            ContentRange::Bytes(range) => {
+                if range.last_byte + 1 == range.complete_length {
+                    ChunkBoundary::Next
+                } else {
+                    ChunkBoundary::More((range.last_byte + 1) as usize)
+                }
+            }
+            ContentRange::UnboundBytes(_) => ChunkBoundary::Next,
+            ContentRange::Unsatisfied(_) => ChunkBoundary::Unknown,
+            ContentRange::Unknown => ChunkBoundary::Unknown,
+        },
+        None => ChunkBoundary::Next,
+    }
 }
