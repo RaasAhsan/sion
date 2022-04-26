@@ -48,6 +48,7 @@ fn main() {
     // let bytes = &cursor.get_ref()[..];
     // println!("{:?}", bytes);
 
+    // TODO: users should prefer a longterm streaming api for long reads?
     let mut file = fs.open("helloworld.txt").unwrap();
     let mut buf = Vec::new();
     file.read_to_end(&mut buf).unwrap();
