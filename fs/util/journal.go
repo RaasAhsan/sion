@@ -2,6 +2,8 @@ package util
 
 import "os"
 
+// Constraints: checkpoint/snapshot/state can fit into memory, journal cannot
+
 // TODO: either we use a lock to protect access to file,
 // or we transmit requests to a goroutine worker which processes
 // the writes and returns acknowledgements
@@ -10,6 +12,7 @@ type Journal[S any, T any] struct {
 	handler Handler[S, T]
 }
 
+// TODO: should we assume the checkpoint/snapshot can fit into memory?
 type Handler[S any, T any] interface {
 	InitialState() S
 	// All these Read/Write could just use json.Marshal and Unmarshal
