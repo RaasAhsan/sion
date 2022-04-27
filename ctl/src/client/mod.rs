@@ -46,7 +46,7 @@ impl File {
 
     // For now, assume the buffer is always large enough to read a whole chunk
     // TODO: fix this once we have more size information
-    fn read_one_chunk(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+    fn read_one_chunk(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
         let state = self.read_state.as_mut().unwrap();
         if state.chunk_index >= state.chunks.len() {
             Ok(0)
@@ -57,15 +57,13 @@ impl File {
             // It is fine if we go past the end of the file; server will tell us the true length
             // TODO: but fix this later when we have chunk metadata locally
             let end = start + buf.len() - 1;
-            let mut vbuf = Vec::new();
+
             match storage.download_chunk(
                 state.chunks.index(state.chunk_index),
-                &mut vbuf,
+                &mut buf,
                 Some((start, end)),
             ) {
                 Ok(resp) => {
-                    buf[..vbuf.len()].clone_from_slice(&vbuf);
-
                     // Check chunk boundary to see if we need to request more
                     // bytes on the current chunk, or if we can move onto the next
                     match chunk_boundary_from_range(&resp.content_range) {
