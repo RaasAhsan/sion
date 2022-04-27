@@ -35,9 +35,9 @@ struct WriteState {
 }
 
 impl File {
-    fn new(path: String, fs: FileSystem) -> File {
+    fn new(path: &str, fs: FileSystem) -> File {
         File {
-            path,
+            path: path.to_string(),
             fs,
             read_state: None,
             write_state: None,
