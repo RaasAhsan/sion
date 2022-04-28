@@ -16,23 +16,25 @@ func StartStorageProcess(ready chan int) {
 	// TODO: what is the common pattern for this?
 	baseUrl := "http://localhost:8000"
 	localUrl := "http://localhost:8080"
-	nodeId := Join(client, baseUrl, localUrl)
+	node := Join(client, baseUrl, localUrl)
 	done := make(chan bool)
 	// TODO: capture this in a struct or something
-	go HeartbeatLoop(client, baseUrl, nodeId, done)
-	StartStorageServer(ready)
+	go node.HeartbeatLoop(client, baseUrl, done)
+	StartStorageServer(node, ready)
 }
 
 type StorageHandler struct {
 	Inventory     *Inventory
+	Node          *Node
 	DataDirectory string
 }
 
-func StartStorageServer(ready chan int) {
+func StartStorageServer(node *Node, ready chan int) {
 	r := mux.NewRouter()
 
 	h := &StorageHandler{
 		Inventory:     NewInventory(),
+		Node:          node,
 		DataDirectory: "./testdir/data",
 	}
 

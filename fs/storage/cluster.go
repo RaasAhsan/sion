@@ -13,7 +13,13 @@ import (
 	"github.com/RaasAhsan/sion/fs/api"
 )
 
-func Join(client *http.Client, baseUrl string, localUrl string) fs.NodeId {
+type Node struct {
+	Id       fs.NodeId
+	Sequence int
+	Commands []api.Command
+}
+
+func Join(client *http.Client, baseUrl string, localUrl string) *Node {
 	log.Println("Registering node with master")
 	req := api.RegisterRequest{
 		Address: fs.NodeAddress(localUrl),
@@ -35,11 +41,11 @@ func Join(client *http.Client, baseUrl string, localUrl string) fs.NodeId {
 		log.Fatalf("Failed to register")
 	}
 	log.Printf("Successfully registered node: %s", success.NodeId)
-	return success.NodeId
+	return &Node{Id: success.NodeId}
 }
 
 // TODO: create an exit channel
-func HeartbeatLoop(client *http.Client, baseUrl string, nodeId fs.NodeId, done chan bool) {
+func (n *Node) HeartbeatLoop(client *http.Client, baseUrl string, done chan bool) {
 	log.Println("Starting heartbeat process")
 
 	ticker := time.NewTicker(5 * time.Second)
@@ -51,7 +57,7 @@ func HeartbeatLoop(client *http.Client, baseUrl string, nodeId fs.NodeId, done c
 				return
 			case <-ticker.C:
 				func() {
-					req := api.HeartbeatRequest{NodeId: nodeId}
+					req := api.HeartbeatRequest{NodeId: n.Id}
 					reqBody, err := json.Marshal(req)
 					if err != nil {
 						log.Println("Failed to create request")

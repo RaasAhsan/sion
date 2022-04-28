@@ -18,11 +18,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type NodeState struct {
-	// Sequence int
-	// Commands []api.Command
-}
-
 type Inventory struct {
 	Chunks map[fs.ChunkId]*Chunk
 	sync.Mutex
