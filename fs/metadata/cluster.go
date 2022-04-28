@@ -150,20 +150,24 @@ func (h *MetadataHandler) Join(w http.ResponseWriter, r *http.Request) {
 	id := fs.NodeId(uuid.New().String())
 	h.Cluster.AddNode(id, req.Address)
 
-	w.Write([]byte(id))
+	resp := api.RegisterResponse{
+		NodeId: id,
+	}
+
+	api.HttpOk(w, resp)
 }
 
 func (h *MetadataHandler) Heartbeat(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "Failed to read body", http.StatusBadRequest)
+		api.HttpError(w, "Invalid body", api.Unknown, http.StatusBadRequest)
 		return
 	}
 
 	var heartbeatReq api.HeartbeatRequest
 	err = json.Unmarshal(body, &heartbeatReq)
 	if err != nil {
-		http.Error(w, "Failed to parse body", http.StatusBadRequest)
+		api.HttpError(w, "Failed to parse body", api.Unknown, http.StatusBadRequest)
 		return
 	}
 
@@ -172,11 +176,12 @@ func (h *MetadataHandler) Heartbeat(w http.ResponseWriter, r *http.Request) {
 
 	err = h.Cluster.HeartbeatNode(heartbeatReq.NodeId)
 	if err != nil {
-		http.Error(w, "Invalid node, please register", http.StatusNotFound)
+		api.HttpError(w, "Node is not registered", api.Unknown, http.StatusBadRequest)
 		log.Fatal("Node is not registered")
 	}
 
-	w.Write([]byte("heartbeat: ok"))
+	resp := api.HeartbeatResponse{}
+	api.HttpOk(w, resp)
 }
 
 func (h *MetadataHandler) GetNodeAddresses(w http.ResponseWriter, r *http.Request) {
