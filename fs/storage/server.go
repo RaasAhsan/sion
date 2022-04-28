@@ -28,10 +28,9 @@ func StartStorageProcess(ready chan int) {
 	StartStorageServer(ready)
 }
 
-type StorageHandler struct{}
-
-func GatherChunkInventory() {
-
+type StorageHandler struct {
+	Inventory     *Inventory
+	DataDirectory string
 }
 
 func Join(client *http.Client, baseUrl string, localUrl string) fs.NodeId {
@@ -102,7 +101,10 @@ func HeartbeatLoop(client *http.Client, baseUrl string, nodeId fs.NodeId, done c
 func StartStorageServer(ready chan int) {
 	r := mux.NewRouter()
 
-	h := &StorageHandler{}
+	h := &StorageHandler{
+		Inventory:     NewInventory(),
+		DataDirectory: "./testdir/data",
+	}
 
 	r.HandleFunc("/chunks/{chunkId}", h.DownloadChunk).Methods("GET")
 	r.HandleFunc("/chunks/{chunkId}", h.UploadChunk).Methods("POST")

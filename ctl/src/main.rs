@@ -18,13 +18,6 @@ fn main() {
     let version = fs.metadata.version().unwrap();
     println!("{:?}", version);
 
-    // let mut file = fs.open("helloworld.txt").unwrap();
-    // let buf = vec![1, 2, 3, 4, 5];
-    // let bytes = file.write(&buf).unwrap();
-    // let bytes2 = file.write(&buf).unwrap();
-    // // std::thread::sleep(std::time::Duration::from_millis(5000));
-    // file.flush().unwrap();
-
     // println!("wrote {} bytes", bytes + bytes2);
 
     // let chunks = fs.metadata.get_chunks(file.path.as_str()).unwrap();
@@ -36,6 +29,14 @@ fn main() {
     // }
     // let bytes = &cursor.get_ref()[..];
     // println!("{:?}", bytes);
+
+
+    // let mut file = fs.open("helloworld.txt").unwrap();
+    // let buf = vec![1, 2, 3, 4, 5];
+    // let bytes = file.write(&buf).unwrap();
+    // let bytes2 = file.write(&buf).unwrap();
+    // // std::thread::sleep(std::time::Duration::from_millis(5000));
+    // file.flush().unwrap();
 
     // TODO: users should prefer a longterm streaming api for long reads?
     let mut file = fs.open("helloworld.txt").unwrap();
