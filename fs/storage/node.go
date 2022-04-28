@@ -33,9 +33,6 @@ func Join(client *http.Client, baseUrl string, localUrl string) *Node {
 		log.Fatalln("Failed to register")
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		log.Fatalf("Unsuccessful register %d\n", resp.StatusCode)
-	}
 	success, err := api.ParseResponse[api.RegisterResponse](resp.Body)
 	if err != nil {
 		log.Fatalf("Failed to register")
