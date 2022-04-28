@@ -1,5 +1,5 @@
 use std::{
-    io::{self, BufReader, BufWriter, Read, Seek, Write},
+    io::{self, BufWriter, Read, Seek, Write},
     ops::Index,
     thread::{self, JoinHandle},
 };
