@@ -76,6 +76,7 @@ func (n *Node) HeartbeatLoop(client *http.Client, baseUrl string, done chan bool
 					if err != nil {
 						log.Fatalln("Failed to parse heartbeat body")
 					}
+					// TODO: receive commands here
 					log.Println("heartbeat ok")
 				}()
 			}
