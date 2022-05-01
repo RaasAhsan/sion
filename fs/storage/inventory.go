@@ -49,7 +49,7 @@ func NewChunk(id fs.ChunkId) *Chunk {
 	}
 }
 
-func (c *Chunk) Location(directory string) string {
+func (c *Chunk) Path(directory string) string {
 	return path.Join(directory, string(c.Id))
 }
 
@@ -78,7 +78,7 @@ func (h *StorageHandler) DownloadChunk(w http.ResponseWriter, r *http.Request) {
 
 	has_range := len(ranges) > 0
 
-	filename := chunk.Location(h.DataDirectory)
+	filename := chunk.Path(h.DataDirectory)
 	in, err := os.Open(filename)
 	if err != nil {
 		api.HttpError(w, "Chunk not found", api.Unknown, http.StatusInternalServerError)
@@ -141,7 +141,7 @@ func (h *StorageHandler) UploadChunk(w http.ResponseWriter, r *http.Request) {
 	chunk := NewChunk(chunkId)
 
 	// Open chunk file for writing
-	filename := chunk.Location(h.DataDirectory)
+	filename := chunk.Path(h.DataDirectory)
 	f, err := os.Create(filename)
 	if err != nil {
 		api.HttpError(w, "Failed to create file", api.Unknown, http.StatusInternalServerError)
