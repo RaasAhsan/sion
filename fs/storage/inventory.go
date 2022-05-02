@@ -46,6 +46,7 @@ func (i *Inventory) PutChunk(chunk *Chunk) {
 type Chunk struct {
 	Id     fs.ChunkId
 	Length uint32
+	sync.RWMutex
 }
 
 func NewChunk(id fs.ChunkId) *Chunk {
@@ -68,6 +69,9 @@ func (h *StorageHandler) DownloadChunk(w http.ResponseWriter, r *http.Request) {
 		api.HttpError(w, "Chunk not found", api.ChunkNotFound, http.StatusNotFound)
 		return
 	}
+
+	chunk.RLocker().Lock()
+	defer chunk.RLocker().Unlock()
 
 	range_req := r.Header.Get("Range")
 	// TODO: we only support a single range now
@@ -135,6 +139,8 @@ func (h *StorageHandler) UploadChunk(w http.ResponseWriter, r *http.Request) {
 	}
 
 	chunk := NewChunk(chunkId)
+
+	// TODO: locking
 
 	// Open chunk file for writing
 	filename := chunk.Path(h.DataDirectory)
@@ -221,6 +227,9 @@ func (h *StorageHandler) AppendChunk(w http.ResponseWriter, r *http.Request) {
 	chunkId := fs.ChunkId(params["chunkId"])
 
 	chunk := h.Inventory.GetOrPutChunk(NewChunk(chunkId))
+
+	chunk.Lock()
+	defer chunk.Unlock()
 
 	// TODO: Chunk-level locking, could also increment chunk size and undo if fails
 
