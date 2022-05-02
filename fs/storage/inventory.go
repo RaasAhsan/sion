@@ -206,3 +206,119 @@ func (h *StorageHandler) UploadChunk(w http.ResponseWriter, r *http.Request) {
 
 	api.HttpOk(w, resp)
 }
+
+// AppendChunk implements "optimistic short append".
+// Atomically creates a chunk if it doesn't exist to it,
+// appends the user payload to it, or if there is not enough space,
+// completes it with padding.
+func (h *StorageHandler) AppendChunk(w http.ResponseWriter, r *http.Request) {
+	payloadLength := r.ContentLength
+	if payloadLength == -1 {
+		api.HttpError(w, "Content-length must be specified", api.Unknown, http.StatusBadRequest)
+		return
+	} else if payloadLength > fs.MaxShortAppendLength {
+		api.HttpError(w, "Payload length is too large", api.Unknown, http.StatusBadRequest)
+		return
+	}
+
+	params := mux.Vars(r)
+	chunkId := fs.ChunkId(params["chunkId"])
+
+	// TODO: this allows only one chunk to upload/download
+	// only lock when need to manipulate metadata
+	h.Inventory.Lock()
+	defer h.Inventory.Unlock()
+
+	chunk := h.Inventory.GetChunk(chunkId)
+	if chunk == nil {
+		chunk = NewChunk(chunkId)
+
+		// TODO: when is the right place to do it? when we create the chunk or after success?
+		h.Inventory.PutChunk(chunk)
+	}
+
+	// TODO: Chunk-level locking, could also increment chunk size and undo if fails
+
+	// First check if chunk is already complete
+	if chunk.Length == fs.ChunkSize {
+		api.HttpError(w, "Chunk is full", api.Unknown, http.StatusBadRequest)
+		return
+	}
+
+	// Then check if we need to pad the chunk and close it
+	if chunk.Length+uint32(payloadLength) > fs.ChunkSize {
+		// TODO: ftruncate the file to end
+		api.HttpNoContent(w, "")
+		return
+	}
+
+	// Otherwise, we can append the contents of the file and update the length
+	filename := chunk.Path(h.DataDirectory)
+	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		api.HttpError(w, "Failed to get file handle", api.Unknown, http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
+	err = file.Truncate(int64(chunk.Length))
+	if err != nil {
+		api.HttpError(w, "Failed to truncate", api.Unknown, http.StatusBadRequest)
+		return
+	}
+
+	_, err = file.Seek(int64(chunk.Length), io.SeekStart)
+	if err != nil {
+		api.HttpError(w, "Failed to seek in file", api.Unknown, http.StatusInternalServerError)
+		return
+	}
+
+	// TODO: deduplicate all this
+
+	reader := http.MaxBytesReader(w, r.Body, fs.ChunkSize)
+	// If we can guarantee a single write, no locking needs to happen
+	writer := bufio.NewWriter(file)
+
+	bytes, err := io.Copy(writer, reader)
+	if err != nil {
+		// TODO: OK to delete the file while it is still open?
+		log.Printf("Chunk %s encountered an error; deleting...\n", filename)
+		// TODO: just undo up to previous length
+		err = os.Remove(filename)
+		if err != nil {
+			log.Printf("Failed to delete chunk %s\n", filename)
+		}
+
+		api.HttpError(w, "Failed to copy chunk", api.Unknown, http.StatusInternalServerError)
+		return
+	}
+
+	// Flush application buffer to OS
+	err = writer.Flush()
+	if err != nil {
+		api.HttpError(w, "Failed to flush chunk", api.Unknown, http.StatusInternalServerError)
+		return
+	}
+
+	// Sync OS buffer to disk
+	err = file.Sync()
+	if err != nil {
+		api.HttpError(w, "Failed to sync chunk", api.Unknown, http.StatusInternalServerError)
+		return
+	}
+
+	offset := chunk.Length
+	chunk.Length += uint32(bytes)
+
+	type response struct {
+		Offset uint32
+		Length uint32
+	}
+
+	resp := response{
+		Offset: offset,
+		Length: uint32(bytes),
+	}
+
+	api.HttpOk(w, resp)
+}

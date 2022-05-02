@@ -28,6 +28,10 @@ func HttpOk[T any](w http.ResponseWriter, body T) {
 	HttpSuccess(w, body, http.StatusOK)
 }
 
+func HttpNoContent[T any](w http.ResponseWriter, body T) {
+	HttpSuccess(w, body, http.StatusNoContent)
+}
+
 func HttpSuccess[T any](w http.ResponseWriter, body T, statusCode int) {
 	resp := Response[T]{Success: &body}
 

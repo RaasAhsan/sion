@@ -38,8 +38,9 @@ func StartStorageServer(node *Node, ready chan int) {
 		DataDirectory: "./testdir/data",
 	}
 
-	r.HandleFunc("/chunks/{chunkId}", h.DownloadChunk).Methods("GET")
-	r.HandleFunc("/chunks/{chunkId}", h.UploadChunk).Methods("POST")
+	r.HandleFunc("/chunks/{chunkId}", h.DownloadChunk).Methods(http.MethodGet)
+	r.HandleFunc("/chunks/{chunkId}", h.UploadChunk).Methods(http.MethodPost)
+	r.HandleFunc("/chunks/{chunkId}", h.AppendChunk).Methods(http.MethodPatch)
 
 	server := &http.Server{
 		Handler: r,
