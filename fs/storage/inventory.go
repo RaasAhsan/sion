@@ -19,22 +19,29 @@ import (
 )
 
 type Inventory struct {
-	Chunks map[fs.ChunkId]*Chunk
+	Chunks sync.Map
 	sync.Mutex
 }
 
 func NewInventory() *Inventory {
-	return &Inventory{
-		Chunks: make(map[fs.ChunkId]*Chunk),
-	}
+	return &Inventory{}
 }
 
 func (i *Inventory) GetChunk(id fs.ChunkId) *Chunk {
-	return i.Chunks[id]
+	v, any := i.Chunks.Load(id)
+	if any {
+		return v.(*Chunk)
+	}
+	return nil
+}
+
+func (i *Inventory) GetOrPutChunk(c *Chunk) *Chunk {
+	rc, _ := i.Chunks.LoadOrStore(c.Id, c)
+	return rc.(*Chunk)
 }
 
 func (i *Inventory) PutChunk(chunk *Chunk) {
-	i.Chunks[chunk.Id] = chunk
+	i.Chunks.Store(chunk.Id, chunk)
 }
 
 type Chunk struct {
@@ -229,13 +236,7 @@ func (h *StorageHandler) AppendChunk(w http.ResponseWriter, r *http.Request) {
 	h.Inventory.Lock()
 	defer h.Inventory.Unlock()
 
-	chunk := h.Inventory.GetChunk(chunkId)
-	if chunk == nil {
-		chunk = NewChunk(chunkId)
-
-		// TODO: when is the right place to do it? when we create the chunk or after success?
-		h.Inventory.PutChunk(chunk)
-	}
+	chunk := h.Inventory.GetOrPutChunk(NewChunk(chunkId))
 
 	// TODO: Chunk-level locking, could also increment chunk size and undo if fails
 
@@ -245,15 +246,22 @@ func (h *StorageHandler) AppendChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	filename := chunk.Path(h.DataDirectory)
+
 	// Then check if we need to pad the chunk and close it
 	if chunk.Length+uint32(payloadLength) > fs.ChunkSize {
-		// TODO: ftruncate the file to end
-		api.HttpNoContent(w, "")
+		err := os.Truncate(filename, fs.ChunkSize)
+		if err != nil {
+			log.Println(err)
+			api.HttpError(w, "Invalid chunk", api.Unknown, http.StatusBadRequest)
+		} else {
+			chunk.Length = fs.ChunkSize
+			api.HttpNoContent(w, "")
+		}
 		return
 	}
 
 	// Otherwise, we can append the contents of the file and update the length
-	filename := chunk.Path(h.DataDirectory)
 	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		api.HttpError(w, "Failed to get file handle", api.Unknown, http.StatusInternalServerError)
@@ -261,6 +269,7 @@ func (h *StorageHandler) AppendChunk(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
+	// Delete any uncommitted data so we can append from the correct position
 	err = file.Truncate(int64(chunk.Length))
 	if err != nil {
 		api.HttpError(w, "Failed to truncate", api.Unknown, http.StatusBadRequest)
@@ -303,6 +312,8 @@ func (h *StorageHandler) AppendChunk(w http.ResponseWriter, r *http.Request) {
 
 	offset := chunk.Length
 	chunk.Length += uint32(bytes)
+
+	// Chunk is now considered committed
 
 	type response struct {
 		Offset uint32
