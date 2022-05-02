@@ -254,7 +254,7 @@ func (h *StorageHandler) AppendChunk(w http.ResponseWriter, r *http.Request) {
 
 	// Otherwise, we can append the contents of the file and update the length
 	filename := chunk.Path(h.DataDirectory)
-	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0666)
+	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		api.HttpError(w, "Failed to get file handle", api.Unknown, http.StatusInternalServerError)
 		return
@@ -264,12 +264,6 @@ func (h *StorageHandler) AppendChunk(w http.ResponseWriter, r *http.Request) {
 	err = file.Truncate(int64(chunk.Length))
 	if err != nil {
 		api.HttpError(w, "Failed to truncate", api.Unknown, http.StatusBadRequest)
-		return
-	}
-
-	_, err = file.Seek(int64(chunk.Length), io.SeekStart)
-	if err != nil {
-		api.HttpError(w, "Failed to seek in file", api.Unknown, http.StatusInternalServerError)
 		return
 	}
 
