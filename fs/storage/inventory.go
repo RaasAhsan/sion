@@ -20,7 +20,6 @@ import (
 
 type Inventory struct {
 	Chunks sync.Map
-	sync.Mutex
 }
 
 func NewInventory() *Inventory {
@@ -63,11 +62,6 @@ func (c *Chunk) Path(directory string) string {
 func (h *StorageHandler) DownloadChunk(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	chunkId := fs.ChunkId(params["chunkId"])
-
-	// TODO: this allows only one chunk to upload/download
-	// only lock when need to manipulate metadata
-	h.Inventory.Lock()
-	defer h.Inventory.Unlock()
 
 	chunk := h.Inventory.GetChunk(chunkId)
 	if chunk == nil {
@@ -130,11 +124,6 @@ func (h *StorageHandler) UploadChunk(w http.ResponseWriter, r *http.Request) {
 		api.HttpError(w, "Chunk exceeds max size", api.Unknown, http.StatusBadRequest)
 		return
 	}
-
-	// TODO: this allows only one chunk to upload/download
-	// only lock when need to manipulate metadata
-	h.Inventory.Lock()
-	defer h.Inventory.Unlock()
 
 	params := mux.Vars(r)
 	chunkId := fs.ChunkId(params["chunkId"])
@@ -230,11 +219,6 @@ func (h *StorageHandler) AppendChunk(w http.ResponseWriter, r *http.Request) {
 
 	params := mux.Vars(r)
 	chunkId := fs.ChunkId(params["chunkId"])
-
-	// TODO: this allows only one chunk to upload/download
-	// only lock when need to manipulate metadata
-	h.Inventory.Lock()
-	defer h.Inventory.Unlock()
 
 	chunk := h.Inventory.GetOrPutChunk(NewChunk(chunkId))
 
