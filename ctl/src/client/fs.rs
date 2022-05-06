@@ -45,11 +45,11 @@ impl FileSystem {
 
     pub fn open(&self, path: &str) -> Result<File, Error> {
         match self.metadata.get_file(path) {
-            Ok(get_file) => Ok(File::new(&get_file.path, self.clone())),
+            Ok(get_file) => Ok(File::new(&get_file.path, &get_file.tail_chunk.chunk_id, self.clone())),
             Err(Error::ServerError(e)) if e.code == ErrorCode::FileNotFound => {
                 // TODO: race condition is possible, retry once?
                 match self.metadata.create_file(path) {
-                    Ok(create) => Ok(File::new(&create.path, self.clone())),
+                    Ok(create) => Ok(File::new(&create.path, &create.tail_chunk.chunk_id, self.clone())),
                     Err(e) => Result::Err(e),
                 }
             }

@@ -18,6 +18,9 @@ mod storage;
 pub struct File {
     pub path: String,
 
+    last_chunk: String,
+
+    // TODO: file internal?
     fs: FileSystem,
     read_state: Option<ReadState>,
     write_state: Option<WriteState>,
@@ -35,12 +38,23 @@ struct WriteState {
 }
 
 impl File {
-    fn new(path: &str, fs: FileSystem) -> File {
+    fn new(path: &str, last_chunk: &str, fs: FileSystem) -> File {
         File {
             path: path.to_string(),
+            last_chunk: last_chunk.to_string(),
             fs,
             read_state: None,
             write_state: None,
+        }
+    }
+
+    pub fn append(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let storage = self.fs.connect_to_storage("http://localhost:8080");
+
+        // TODO: can we avoid copying?
+        match storage.append_chunk(&self.last_chunk, Body::from(buf.to_vec())) {
+            Ok(value) => Ok(value.length),
+            Err(_) => Err(io::Error::new(io::ErrorKind::Other, "upload failed")),
         }
     }
 
@@ -127,30 +141,28 @@ impl Write for File {
         if let Some(state) = &mut self.write_state {
             state.sender.write(buf)
         } else {
-            let append_resp = self.fs.metadata.append_chunk(&self.path);
-            match append_resp {
-                Ok(append) => {
-                    let (tx_writer, reader) = buffer::channel();
-                    let mut writer = BufWriter::new(tx_writer);
+            // TODO: freeze and append chunk if we have no more space
+            // if we get a conflict then we need to find the new tail chunk
+            // let append_resp = self.fs.metadata.freeze_chunk(&self.path);
+            let (tx_writer, reader) = buffer::channel();
+            let mut writer = BufWriter::new(tx_writer);
 
-                    let storage = self.fs.connect_to_storage("http://localhost:8080");
+            let storage = self.fs.connect_to_storage("http://localhost:8080");
 
-                    let handle = thread::spawn(move || {
-                        // TODO: use real address here
-                        match storage.upload_chunk(&append.chunk_id, Body::new(reader)) {
-                            Ok(value) => Ok(value.received),
-                            Err(_) => Err(io::Error::new(io::ErrorKind::Other, "upload failed")),
-                        }
-                    });
-                    let init_write = writer.write(buf);
-                    self.write_state = Some(WriteState {
-                        handle,
-                        sender: writer,
-                    });
-                    init_write
+            let last_chunk_id = self.last_chunk.clone();
+            let handle = thread::spawn(move || {
+                // TODO: use real address here
+                match storage.upload_chunk(&last_chunk_id, Body::new(reader)) {
+                    Ok(value) => Ok(value.received),
+                    Err(_) => Err(io::Error::new(io::ErrorKind::Other, "upload failed")),
                 }
-                Err(_) => Err(io::Error::new(io::ErrorKind::Other, "append failed")),
-            }
+            });
+            let init_write = writer.write(buf);
+            self.write_state = Some(WriteState {
+                handle,
+                sender: writer,
+            });
+            init_write
         }
     }
 

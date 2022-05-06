@@ -25,7 +25,7 @@ type MetadataHandler struct {
 
 func (h *MetadataHandler) GetFile(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	path := Path(params["path"])
+	path := fs.Path(params["path"])
 
 	if !h.Namespace.FileExists(path) {
 		api.HttpError(w, "The specified file does not exist.", api.FileNotFound, http.StatusNotFound)
@@ -36,13 +36,32 @@ func (h *MetadataHandler) GetFile(w http.ResponseWriter, r *http.Request) {
 	file.RLock()
 	defer file.RUnlock()
 
-	api.HttpOk(w, file)
+	tailChunk := file.Tail()
+
+	nodes := func() []fs.NodeId {
+		h.Placement.Lock()
+		defer h.Placement.Unlock()
+		return h.Placement.GetPlacements(tailChunk.id)
+	}()
+
+	resp := api.FileResponse{
+		Path:         file.Path,
+		TimeCreated:  file.TimeCreated,
+		TimeModified: file.TimeModified,
+		Size:         file.Size,
+		TailChunk: api.ChunkLocation{
+			Id:    tailChunk.id,
+			Nodes: nodes,
+		},
+	}
+
+	api.HttpOk(w, resp)
 }
 
 // TODO: place these in namespace module?
 func (h *MetadataHandler) CreateFile(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	path := Path(params["path"])
+	path := fs.Path(params["path"])
 
 	file := NewFile(path)
 	created := h.Namespace.CreateFile(file)
@@ -54,29 +73,21 @@ func (h *MetadataHandler) CreateFile(w http.ResponseWriter, r *http.Request) {
 	file.Lock()
 	defer file.Unlock()
 
-	headChunk := file.Head()
+	tailChunk := file.Tail()
 
 	nodeId := func() fs.NodeId {
 		h.Placement.Lock()
 		defer h.Placement.Unlock()
-		return h.Placement.PlaceChunk(headChunk.id)
+		return h.Placement.PlaceChunk(tailChunk.id)
 	}()
 
-	type response struct {
-		Path         Path
-		TimeCreated  int64
-		TimeModified int64
-		Size         uint
-		HeadChunk    api.ChunkLocation
-	}
-
-	resp := response{
+	resp := api.FileResponse{
 		Path:         file.Path,
 		TimeCreated:  file.TimeCreated,
 		TimeModified: file.TimeModified,
 		Size:         file.Size,
-		HeadChunk: api.ChunkLocation{
-			Id:    headChunk.id,
+		TailChunk: api.ChunkLocation{
+			Id:    tailChunk.id,
 			Nodes: []fs.NodeId{nodeId},
 		},
 	}
@@ -87,7 +98,7 @@ func (h *MetadataHandler) CreateFile(w http.ResponseWriter, r *http.Request) {
 // Freezes the tail chunk of a file and appends a new open chunk
 func (h *MetadataHandler) FreezeChunk(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	path := Path(params["path"])
+	path := fs.Path(params["path"])
 	chunkId := fs.ChunkId(params["chunkId"])
 
 	file := h.Namespace.GetFile(path)
@@ -120,7 +131,7 @@ func (h *MetadataHandler) FreezeChunk(w http.ResponseWriter, r *http.Request) {
 
 func (h *MetadataHandler) GetChunks(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	path := Path(params["path"])
+	path := fs.Path(params["path"])
 
 	file := h.Namespace.GetFile(path)
 	if file == nil {

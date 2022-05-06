@@ -8,8 +8,6 @@ import (
 	"github.com/RaasAhsan/sion/fs"
 )
 
-type Path string
-
 // TODO: Use a RWMutex to synchronize access to the namespace
 type Namespace struct {
 	files sync.Map
@@ -19,7 +17,7 @@ func NewNamespace() *Namespace {
 	return &Namespace{}
 }
 
-func (n *Namespace) FileExists(path Path) bool {
+func (n *Namespace) FileExists(path fs.Path) bool {
 	_, ok := n.files.Load(path)
 	return ok
 }
@@ -30,7 +28,7 @@ func (n *Namespace) CreateFile(newFile *File) bool {
 	return !loaded
 }
 
-func (n *Namespace) GetFile(path Path) *File {
+func (n *Namespace) GetFile(path fs.Path) *File {
 	file, ok := n.files.Load(path)
 	if !ok {
 		return nil
@@ -41,7 +39,7 @@ func (n *Namespace) GetFile(path Path) *File {
 
 // File inode
 type File struct {
-	Path         Path
+	Path         fs.Path
 	TimeCreated  int64
 	TimeModified int64
 	Size         uint // TODO: can file size be determined easily?
@@ -84,7 +82,7 @@ func (f *File) FreezeAndAppend(tailChunkId fs.ChunkId) (*Chunk, error) {
 }
 
 // Create a new file and allocate the first open chunk
-func NewFile(path Path) *File {
+func NewFile(path fs.Path) *File {
 	head := NewChunk()
 	return &File{
 		Path:         path,

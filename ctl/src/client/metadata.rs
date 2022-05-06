@@ -47,7 +47,7 @@ impl MetadataClient {
             .and_then(|resp| super::response::parse_from_response(resp))
     }
 
-    pub fn get_chunks(&self, path: &str) -> Result<Vec<GetChunkLocationResponse>, Error> {
+    pub fn get_chunks(&self, path: &str) -> Result<Vec<ChunkLocation>, Error> {
         self.client
             .get(format!("{}/files/{}/chunks", self.address, path))
             .send()
@@ -56,9 +56,9 @@ impl MetadataClient {
     }
 
     // TODO: append to old chunk
-    pub fn append_chunk(&self, path: &str) -> Result<AppendChunkResponse, Error> {
+    pub fn freeze_chunk(&self, path: &str, chunk_id: &str) -> Result<ChunkLocation, Error> {
         self.client
-            .post(format!("{}/files/{}/chunks", self.address, path))
+            .post(format!("{}/files/{}/chunks/{}/freeze", self.address, path, chunk_id))
             .send()
             .map_err(|_| Error::NetworkError)
             .and_then(|resp| super::response::parse_from_response(resp))
@@ -90,6 +90,8 @@ pub struct FileResponse {
     pub time_modified: u64,
     #[serde(rename(deserialize = "Size"))]
     pub size: u64,
+    #[serde(rename(deserialize = "TailChunk"))]
+    pub tail_chunk: ChunkLocation,
 }
 
 #[derive(Deserialize, Debug)]
@@ -105,17 +107,9 @@ pub struct VersionResponse {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct AppendChunkResponse {
-    #[serde(rename(deserialize = "ChunkId"))]
-    pub chunk_id: String,
-    #[serde(rename(deserialize = "NodeId"))]
-    pub node_id: String,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct GetChunkLocationResponse {
+pub struct ChunkLocation {
     #[serde(rename(deserialize = "Id"))]
     pub chunk_id: String,
     #[serde(rename(deserialize = "Nodes"))]
-    pub nodes: Vec<String>,
+    pub node_ids: Vec<String>,
 }

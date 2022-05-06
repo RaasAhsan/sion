@@ -67,6 +67,15 @@ impl StorageClient {
             .map_err(|_| Error::NetworkError)
             .and_then(|resp| super::response::parse_from_response(resp))
     }
+
+    pub fn append_chunk(&self, chunk_id: &str, body: Body) -> Result<AppendChunkResponse, Error> {
+        self.client
+            .patch(format!("{}/chunks/{}", self.address, chunk_id))
+            .body(body)
+            .send()
+            .map_err(|_| Error::NetworkError)
+            .and_then(|resp| super::response::parse_from_response(resp))
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -75,6 +84,14 @@ pub struct UploadChunkResponse {
     pub id: String,
     #[serde(rename(deserialize = "Received"))]
     pub received: usize,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AppendChunkResponse {
+    #[serde(rename(deserialize = "Offset"))]
+    pub offset: usize,
+    #[serde(rename(deserialize = "Length"))]
+    pub length: usize,
 }
 
 #[derive(Debug)]
