@@ -27,16 +27,14 @@ func (h *MetadataHandler) GetFile(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	path := Path(params["path"])
 
-	// TODO: scope this in a function to minimize critical region?
-	h.Namespace.Lock()
-	defer h.Namespace.Unlock()
-
 	if !h.Namespace.FileExists(path) {
 		api.HttpError(w, "The specified file does not exist.", api.FileNotFound, http.StatusNotFound)
 		return
 	}
 
 	file := h.Namespace.GetFile(path)
+	file.RLock()
+	defer file.RUnlock()
 
 	api.HttpOk(w, file)
 }
@@ -46,17 +44,15 @@ func (h *MetadataHandler) CreateFile(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	path := Path(params["path"])
 
-	// TODO: scope this in a function to minimize critical region?
-	h.Namespace.Lock()
-	defer h.Namespace.Unlock()
-
-	if h.Namespace.FileExists(path) {
+	file := NewFile(path)
+	created := h.Namespace.CreateFile(file)
+	if !created {
 		api.HttpError(w, "The specified file exists already.", api.FileNotFound, http.StatusNotFound)
 		return
 	}
 
-	file := NewFile(path)
-	h.Namespace.AddFile(file)
+	file.Lock()
+	defer file.Unlock()
 
 	headChunk := file.Head()
 
@@ -94,15 +90,13 @@ func (h *MetadataHandler) FreezeChunk(w http.ResponseWriter, r *http.Request) {
 	path := Path(params["path"])
 	chunkId := fs.ChunkId(params["chunkId"])
 
-	// TODO: scope this in a function to minimize critical region?
-	h.Namespace.Lock()
-	defer h.Namespace.Unlock()
-
 	file := h.Namespace.GetFile(path)
 	if file == nil {
 		api.HttpError(w, "File does not exist", api.Unknown, http.StatusBadRequest)
 		return
 	}
+	file.Lock()
+	defer file.Unlock()
 
 	nextChunk, err := file.FreezeAndAppend(chunkId)
 	if err != nil {
@@ -128,15 +122,13 @@ func (h *MetadataHandler) GetChunks(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	path := Path(params["path"])
 
-	// TODO: fix this locking, don't need it while querying placement
-	h.Namespace.Lock()
-	defer h.Namespace.Unlock()
-
 	file := h.Namespace.GetFile(path)
 	if file == nil {
 		api.HttpError(w, "File does not exist", api.Unknown, http.StatusBadRequest)
 		return
 	}
+	file.RLock()
+	defer file.RUnlock()
 
 	chunks := make([]api.ChunkLocation, 0)
 

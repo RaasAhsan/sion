@@ -12,26 +12,31 @@ type Path string
 
 // TODO: Use a RWMutex to synchronize access to the namespace
 type Namespace struct {
-	files map[Path]*File
-	// TODO: switch to RWMutex
-	sync.Mutex
+	files sync.Map
 }
 
 func NewNamespace() *Namespace {
-	return &Namespace{files: make(map[Path]*File)}
+	return &Namespace{}
 }
 
 func (n *Namespace) FileExists(path Path) bool {
-	_, exist := n.files[path]
-	return exist
+	_, ok := n.files.Load(path)
+	return ok
 }
 
-func (n *Namespace) AddFile(file *File) {
-	n.files[file.Path] = file
+// Creates a new file atomically, or returns if it already exists.
+func (n *Namespace) CreateFile(newFile *File) bool {
+	_, loaded := n.files.LoadOrStore(newFile.Path, newFile)
+	return !loaded
 }
 
 func (n *Namespace) GetFile(path Path) *File {
-	return n.files[path]
+	file, ok := n.files.Load(path)
+	if !ok {
+		return nil
+	}
+
+	return file.(*File)
 }
 
 // File inode
@@ -41,6 +46,7 @@ type File struct {
 	TimeModified int64
 	Size         uint // TODO: can file size be determined easily?
 	mappings     []*Chunk
+	sync.RWMutex
 }
 
 // Guaranteed to have at least one chunk
