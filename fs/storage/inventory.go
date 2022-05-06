@@ -235,6 +235,7 @@ func (h *StorageHandler) AppendChunk(w http.ResponseWriter, r *http.Request) {
 
 	// First check if chunk is already complete
 	if chunk.Length == fs.ChunkSize {
+		// TODO: should we return a better status code here, to inform a writer that they need to append?
 		api.HttpError(w, "Chunk is full", api.Unknown, http.StatusBadRequest)
 		return
 	}

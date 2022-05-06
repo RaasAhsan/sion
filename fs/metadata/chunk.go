@@ -11,6 +11,7 @@ type Chunk struct {
 	id          fs.ChunkId
 	timeCreated int64
 	size        uint
+	frozen      bool
 }
 
 func NewChunk() *Chunk {
@@ -18,5 +19,10 @@ func NewChunk() *Chunk {
 		id:          fs.ChunkId(uuid.New().String()),
 		timeCreated: time.Now().Unix(),
 		size:        0,
+		frozen:      false,
 	}
+}
+
+func (c *Chunk) Freeze() {
+	c.frozen = true
 }

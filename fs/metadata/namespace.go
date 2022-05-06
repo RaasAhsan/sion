@@ -1,8 +1,11 @@
 package metadata
 
 import (
+	"errors"
 	"sync"
 	"time"
+
+	"github.com/RaasAhsan/sion/fs"
 )
 
 type Path string
@@ -40,16 +43,48 @@ type File struct {
 	mappings     []*Chunk
 }
 
+// Guaranteed to have at least one chunk
+func (f *File) Head() *Chunk {
+	return f.mappings[0]
+}
+
+// Guaranteed to have at least one chunk
+func (f *File) Tail() *Chunk {
+	return f.mappings[len(f.mappings)-1]
+}
+
+func (f *File) FreezeChunk(chunkId fs.ChunkId) bool {
+	tail := f.Tail()
+	if tail.id != chunkId {
+		return false
+	}
+
+	tail.Freeze()
+	return true
+}
+
 func (f *File) AppendChunk(c *Chunk) {
 	f.mappings = append(f.mappings, c)
 }
 
+func (f *File) FreezeAndAppend(tailChunkId fs.ChunkId) (*Chunk, error) {
+	if !f.FreezeChunk(tailChunkId) {
+		return nil, errors.New("expected tail chunk")
+	}
+
+	c := NewChunk()
+	f.AppendChunk(c)
+	return c, nil
+}
+
+// Create a new file and allocate the first open chunk
 func NewFile(path Path) *File {
+	head := NewChunk()
 	return &File{
 		Path:         path,
 		TimeCreated:  time.Now().Unix(),
 		TimeModified: time.Now().Unix(),
 		Size:         0,
-		mappings:     make([]*Chunk, 0),
+		mappings:     []*Chunk{head},
 	}
 }

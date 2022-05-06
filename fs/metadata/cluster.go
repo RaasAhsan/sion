@@ -133,14 +133,14 @@ func (node *Node) Heartbeat() {
 func (h *MetadataHandler) Join(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "Failed to read body", http.StatusBadRequest)
+		api.HttpError(w, "Failed to read body", api.Unknown, http.StatusBadRequest)
 		return
 	}
 
 	var req api.RegisterRequest
 	err = json.Unmarshal(body, &req)
 	if err != nil {
-		http.Error(w, "Failed to parse body", http.StatusBadRequest)
+		api.HttpError(w, "Failed to parse body", api.Unknown, http.StatusBadRequest)
 		return
 	}
 

@@ -41,17 +41,6 @@ func (h *MetadataHandler) GetFile(w http.ResponseWriter, r *http.Request) {
 	api.HttpOk(w, file)
 }
 
-// // TODO: just inline this to CreateFile?
-// type CreateFile struct {
-// 	Path Path
-// }
-// var create CreateFile
-// err := json.NewDecoder(r.Body).Decode(&create)
-// if err != nil {
-// 	http.Error(w, "Failed to parse body", http.StatusBadRequest)
-// 	return
-// }
-
 // TODO: place these in namespace module?
 func (h *MetadataHandler) CreateFile(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
@@ -69,12 +58,41 @@ func (h *MetadataHandler) CreateFile(w http.ResponseWriter, r *http.Request) {
 	file := NewFile(path)
 	h.Namespace.AddFile(file)
 
-	api.HttpOk(w, file)
+	headChunk := file.Head()
+
+	nodeId := func() fs.NodeId {
+		h.Placement.Lock()
+		defer h.Placement.Unlock()
+		return h.Placement.PlaceChunk(headChunk.id)
+	}()
+
+	type response struct {
+		Path         Path
+		TimeCreated  int64
+		TimeModified int64
+		Size         uint
+		HeadChunk    api.ChunkLocation
+	}
+
+	resp := response{
+		Path:         file.Path,
+		TimeCreated:  file.TimeCreated,
+		TimeModified: file.TimeModified,
+		Size:         file.Size,
+		HeadChunk: api.ChunkLocation{
+			Id:    headChunk.id,
+			Nodes: []fs.NodeId{nodeId},
+		},
+	}
+
+	api.HttpOk(w, resp)
 }
 
-func (h *MetadataHandler) AppendChunk(w http.ResponseWriter, r *http.Request) {
+// Freezes the tail chunk of a file and appends a new open chunk
+func (h *MetadataHandler) FreezeChunk(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	path := Path(params["path"])
+	chunkId := fs.ChunkId(params["chunkId"])
 
 	// TODO: scope this in a function to minimize critical region?
 	h.Namespace.Lock()
@@ -82,25 +100,26 @@ func (h *MetadataHandler) AppendChunk(w http.ResponseWriter, r *http.Request) {
 
 	file := h.Namespace.GetFile(path)
 	if file == nil {
-		http.Error(w, "File does not exist", http.StatusBadRequest)
+		api.HttpError(w, "File does not exist", api.Unknown, http.StatusBadRequest)
 		return
 	}
 
-	chunk := NewChunk()
-	file.AppendChunk(chunk)
+	nextChunk, err := file.FreezeAndAppend(chunkId)
+	if err != nil {
+		api.HttpError(w, "Expected incorrect tail chunk", api.Unknown, http.StatusConflict)
+		return
+	}
 
 	nodeId := func() fs.NodeId {
 		h.Placement.Lock()
 		defer h.Placement.Unlock()
-		return h.Placement.PlaceChunk(chunk.id)
+		return h.Placement.PlaceChunk(nextChunk.id)
 	}()
 
-	type response struct {
-		ChunkId fs.ChunkId
-		NodeId  fs.NodeId
+	resp := api.ChunkLocation{
+		Id:    nextChunk.id,
+		Nodes: []fs.NodeId{nodeId},
 	}
-
-	resp := response{ChunkId: chunk.id, NodeId: nodeId}
 
 	api.HttpOk(w, resp)
 }
@@ -115,16 +134,11 @@ func (h *MetadataHandler) GetChunks(w http.ResponseWriter, r *http.Request) {
 
 	file := h.Namespace.GetFile(path)
 	if file == nil {
-		http.Error(w, "File does not exist", http.StatusBadRequest)
+		api.HttpError(w, "File does not exist", api.Unknown, http.StatusBadRequest)
 		return
 	}
 
-	type chunkLocation struct {
-		Id    fs.ChunkId
-		Nodes []fs.NodeId
-	}
-
-	chunks := make([]chunkLocation, 0)
+	chunks := make([]api.ChunkLocation, 0)
 
 	h.Placement.Lock()
 	defer h.Placement.Unlock()
@@ -132,7 +146,7 @@ func (h *MetadataHandler) GetChunks(w http.ResponseWriter, r *http.Request) {
 	for _, chunk := range file.mappings {
 		// TODO: this can error
 		placements := h.Placement.GetPlacements(chunk.id)
-		chunks = append(chunks, chunkLocation{Id: chunk.id, Nodes: placements})
+		chunks = append(chunks, api.ChunkLocation{Id: chunk.id, Nodes: placements})
 	}
 
 	api.HttpOk(w, chunks)
@@ -171,16 +185,17 @@ func server(ready chan int) {
 		Placement: NewPlacement(pmsgs),
 	}
 
-	r.HandleFunc("/join", handler.Join).Methods("POST")
-	r.HandleFunc("/heartbeat", handler.Heartbeat).Methods("POST")
-	r.HandleFunc("/nodes", handler.GetNodeAddresses).Methods("GET")
+	r.HandleFunc("/join", handler.Join).Methods(http.MethodPost)
+	r.HandleFunc("/heartbeat", handler.Heartbeat).Methods(http.MethodPost)
+	r.HandleFunc("/nodes", handler.GetNodeAddresses).Methods(http.MethodGet)
 
-	r.HandleFunc("/files/{path}", handler.GetFile).Methods("GET")
-	r.HandleFunc("/files/{path}", handler.CreateFile).Methods("POST")
-	r.HandleFunc("/files/{path}/chunks", handler.GetChunks).Methods("GET")
-	r.HandleFunc("/files/{path}/chunks", handler.AppendChunk).Methods("POST")
+	r.HandleFunc("/files/{path}", handler.GetFile).Methods(http.MethodGet)
+	r.HandleFunc("/files/{path}", handler.CreateFile).Methods(http.MethodPost)
+	r.HandleFunc("/files/{path}/chunks", handler.GetChunks).Methods(http.MethodGet)
 
-	r.HandleFunc("/version", Version).Methods("GET")
+	r.HandleFunc("/files/{path}/chunks/{chunkId}/freeze", handler.FreezeChunk).Methods(http.MethodPost)
+
+	r.HandleFunc("/version", Version).Methods(http.MethodGet)
 
 	server := &http.Server{
 		Handler: r,
