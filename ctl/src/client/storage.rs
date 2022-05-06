@@ -18,7 +18,10 @@ pub struct StorageClient {
 impl StorageClient {
     // TODO: reinitialize for each call or pass address in?
     pub fn new(address: &str, client: Client) -> StorageClient {
-        StorageClient { address: address.to_string(), client }
+        StorageClient {
+            address: address.to_string(),
+            client,
+        }
     }
 
     pub fn download_chunk<W: Write>(

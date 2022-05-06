@@ -58,7 +58,10 @@ impl MetadataClient {
     // TODO: append to old chunk
     pub fn freeze_chunk(&self, path: &str, chunk_id: &str) -> Result<ChunkLocation, Error> {
         self.client
-            .post(format!("{}/files/{}/chunks/{}/freeze", self.address, path, chunk_id))
+            .post(format!(
+                "{}/files/{}/chunks/{}/freeze",
+                self.address, path, chunk_id
+            ))
             .send()
             .map_err(|_| Error::NetworkError)
             .and_then(|resp| super::response::parse_from_response(resp))
